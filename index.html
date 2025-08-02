@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tachimetro GPS Futuristico</title>
     
-    <!-- Meta tag per PWA -->
     <meta name="theme-color" content="#0a0a0a"/>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,10 +14,8 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Font futuristico da Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
@@ -26,53 +23,28 @@
     <style>
         body {
             font-family: 'Orbitron', sans-serif;
-            -webkit-tap-highlight-color: transparent; /* Rimuove il flash blu al tocco */
+            -webkit-tap-highlight-color: transparent;
         }
-        /* Stili per le barre con gradiente */
-        .gauge-bar-filled {
-            background: linear-gradient(90deg, #0369a1, #0ea5e9, #67e8f9);
-        }
-        .gauge-bar-brake {
-             background: linear-gradient(90deg, #b91c1c, #ef4444, #fca5a5);
-        }
-        /* Stili personalizzati per il range slider */
-        input[type=range] {
-            -webkit-appearance: none;
-            appearance: none;
-            background: transparent;
-            cursor: pointer;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            background: #1e293b;
-            height: 6px;
-            border-radius: 3px;
-        }
-        input[type=range]::-moz-range-track {
-            background: #1e293b;
-            height: 6px;
-            border-radius: 3px;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            margin-top: -7px; /* Centra il thumb sulla traccia */
-            background-color: #0ea5e9;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-        }
-        input[type=range]::-moz-range-thumb {
-            border: none;
-            background-color: #0ea5e9;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
+        .gauge-bar-filled { background: linear-gradient(90deg, #0369a1, #0ea5e9, #67e8f9); }
+        .gauge-bar-brake { background: linear-gradient(90deg, #b91c1c, #ef4444, #fca5a5); }
+        
+        /* Stili per lo slider */
+        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { background: #1e293b; height: 6px; border-radius: 3px; }
+        input[type=range]::-moz-range-track { background: #1e293b; height: 6px; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -7px; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
+        input[type=range]::-moz-range-thumb { border: none; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
+
+        /* Animazione per la calibrazione */
+        .calibrating { animation: spin 0.5s ease-in-out; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
 
-    <!-- Schermata per la richiesta dei permessi -->
     <div id="permission-screen" class="text-center p-8">
         <h1 class="text-3xl font-bold mb-4 text-white">Tachimetro Futuristico</h1>
         <p class="mb-8 text-slate-300">Per iniziare, è necessario concedere i permessi per accedere al GPS e ai sensori di movimento del dispositivo.</p>
@@ -82,18 +54,20 @@
         <p id="error-message" class="text-red-500 mt-4"></p>
     </div>
 
-    <!-- Interfaccia principale del tachimetro (nascosta all'inizio) -->
-    <main id="dashboard" class="hidden w-full h-full p-4 flex flex-col items-center justify-around">
+    <!-- Interfaccia principale del tachimetro -->
+    <main id="dashboard" class="hidden relative w-full h-full p-4 flex flex-col items-center justify-around">
         
+        <!-- NUOVO PULSANTE CALIBRAZIONE (ICONA) -->
+        <button id="calibrate-btn" class="absolute top-5 right-5 text-cyan-400 hover:text-white transition-colors z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+        </button>
+
         <!-- Tachimetro principale -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
             <svg class="transform -rotate-90 w-full h-full">
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
                 <circle id="speed-gauge" cx="50%" cy="50%" r="45%" stroke="#0ea5e9" stroke-width="12" fill="transparent"
-                    stroke-linecap="round"
-                    class="transition-all duration-200"
-                    stroke-dasharray="1000" 
-                    stroke-dashoffset="1000" />
+                    stroke-linecap="round" class="transition-all duration-200" stroke-dasharray="1000" stroke-dashoffset="1000" />
             </svg>
             <div class="absolute text-center">
                 <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white">0</span>
@@ -101,7 +75,7 @@
             </div>
         </div>
 
-        <!-- Sezione Accelerazione e Frenata -->
+        <!-- Sezione Potenza -->
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">POTENZA</div>
             <div class="flex items-center justify-center space-x-2">
@@ -112,12 +86,10 @@
                     <div id="accel-bar" class="gauge-bar-filled h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
                 </div>
             </div>
-             <div class="flex items-center justify-between mt-2 text-xs text-slate-400">
+            <div class="flex items-center justify-between mt-2 text-xs text-slate-400">
                 <span>FRENO</span>
                 <span>ACCEL</span>
             </div>
-
-            <!-- *** NUOVA SEZIONE SENSIBILITÀ *** -->
             <div class="mt-6">
                 <label for="sensitivity-slider" class="block text-center text-sm text-slate-400 mb-2">SENSIBILITÀ</label>
                 <div class="flex items-center space-x-3">
@@ -128,26 +100,35 @@
             </div>
         </div>
         
-        <!-- Sezione Inclinazione -->
+        <!-- NUOVA SEZIONE ASSETTO VISIVA -->
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">ASSETTO</div>
             <div class="grid grid-cols-2 gap-4 text-center">
+                <!-- Visuale Inclinazione (Roll) -->
                 <div>
-                    <div class="text-slate-400 text-sm">INCLINAZIONE</div>
-                    <div id="roll-value" class="text-2xl font-bold text-white">0°</div>
+                    <div class="h-20 flex items-center justify-center">
+                        <svg id="rear-car-svg" class="w-24 h-auto transition-transform duration-100" viewBox="0 0 100 60" style="transform-origin: center;">
+                            <path d="M20,50 L80,50 L85,30 L95,30 L95,20 L5,20 L5,30 L15,30 L20,50 Z" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
+                            <rect x="25" y="25" width="50" height="15" fill="#0a0a0a" stroke="#0ea5e9" stroke-width="1"/>
+                            <circle cx="15" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
+                            <circle cx="85" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
+                        </svg>
+                    </div>
+                    <div id="roll-value" class="text-xl font-bold text-white mt-2">0°</div>
                 </div>
+                <!-- Visuale Beccheggio (Pitch) -->
                 <div>
-                    <div class="text-slate-400 text-sm">BECCHEGGIO</div>
-                    <div id="pitch-value" class="text-2xl font-bold text-white">0°</div>
+                    <div class="h-20 flex items-center justify-center">
+                        <svg id="side-car-svg" class="w-28 h-auto transition-transform duration-100" viewBox="0 0 120 60" style="transform-origin: center;">
+                             <path d="M10,50 L110,50 L100,30 L70,30 L60,20 L20,20 L10,35 Z" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
+                             <circle cx="25" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
+                             <circle cx="95" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
+                        </svg>
+                    </div>
+                    <div id="pitch-value" class="text-xl font-bold text-white mt-2">0°</div>
                 </div>
-            </div>
-            <div class="text-center mt-6">
-                <button id="calibrate-btn" class="bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold py-2 px-5 rounded-lg shadow-md transition-all duration-300">
-                    Calibra Posizione
-                </button>
             </div>
         </div>
-
     </main>
 
     <script src="app.js"></script>
