@@ -74,7 +74,8 @@
 
         <!-- Tachimetro con cerchi multipli per i colori progressivi -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
-            <svg class="transform -rotate-90 w-full h-full">
+            <!-- CORREZIONE: Ruota l'intero SVG per allineare il punto di partenza con lo '0' in basso a sinistra -->
+            <svg class="w-full h-full" style="transform: rotate(135deg);">
                 <!-- Sfondo -->
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
                 <!-- Segmenti colorati -->
@@ -89,7 +90,7 @@
             </div>
             <!-- Indicatori 0 e 200 -->
             <span class="absolute bottom-4 left-4 text-slate-500 text-lg font-bold">0</span>
-            <span class="absolute bottom-4 right-0 text-slate-500 text-lg font-bold">200</span>
+            <span class="absolute bottom-4 right-2 text-slate-500 text-lg font-bold">200</span>
         </div>
 
         <div class="w-full max-w-md p-4">
@@ -144,4 +145,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
