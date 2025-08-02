@@ -39,9 +39,49 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* --- Stili per il box "Powered By" --- */
+        #powered-by {
+            font-size: 0.6rem; /* Carattere piccolo, come richiesto (h6) */
+            font-weight: 500;
+            z-index: 50; /* Assicura che sia sopra gli altri elementi */
+            /* Applico le due animazioni: una per il colore, una per la pulsazione */
+            animation: color-cycle 16s linear infinite, pulse 4s ease-in-out infinite;
+        }
+
+        /* Animazione per il cambio colore fluido */
+        @keyframes color-cycle {
+            0%   { color: #0ea5e9; } /* cyan */
+            12.5% { color: #d946ef; } /* fuchsia */
+            25%  { color: #eab308; } /* yellow */
+            37.5% { color: #22c55e; } /* green */
+            50%  { color: #f97316; } /* orange */
+            62.5% { color: #8b5cf6; } /* violet */
+            75%  { color: #ef4444; } /* red */
+            87.5% { color: #3b82f6; } /* blue */
+            100% { color: #0ea5e9; } /* torna al ciano */
+        }
+
+        /* Animazione per l'effetto pulsazione lieve */
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+        }
+        /* --- Fine stili aggiunti --- */
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
+
+    <!-- Box "Powered By" aggiunto qui -->
+    <div id="powered-by" class="absolute top-2 left-2">
+        Powered By Michele Rosati
+    </div>
 
     <div id="permission-screen" class="text-center p-8">
         <h1 class="text-3xl font-bold mb-4 text-white">Tachimetro Futuristico</h1>
