@@ -139,24 +139,32 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
+    // *** FUNZIONE AGGIORNATA CON SOGLIA DI VELOCITÀ ***
     function updateSpeed(position) {
-        const speedKmh = position.coords.speed ? (position.coords.speed * 3.6).toFixed(0) : 0;
-        speedValue.textContent = speedKmh;
-        const speedFraction = Math.min(speedKmh / MAX_SPEED, 1);
+        // La velocità è in m/s, la convertiamo in km/h
+        let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
+        
+        // Se la velocità è molto bassa (sotto i 3 km/h), la consideriamo zero per evitare il "GPS drift" da fermi.
+        const speedThreshold = 3; 
+        if (speedKmh < speedThreshold) {
+            speedKmh = 0;
+        }
+
+        const displaySpeed = speedKmh.toFixed(0);
+        speedValue.textContent = displaySpeed;
+
+        // Aggiorna l'indicatore grafico del tachimetro
+        const speedFraction = Math.min(displaySpeed / MAX_SPEED, 1);
         const offset = gaugeCircumference * (1 - speedFraction);
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // *** FUNZIONE AGGIORNATA CON LOGICA DI SENSIBILITÀ ***
     function updateAcceleration(event) {
         if (!event.acceleration) return;
 
         const calibratedAccelerationZ = event.acceleration.z - accelOffsetZ;
         
-        // Legge il valore dallo slider (1=bassa, 10=alta)
         const sliderValue = sensitivitySlider.value; 
-        // Mappa il valore dello slider a un divisore. Un divisore più basso = maggiore sensibilità.
-        // Esempio: slider a 1 -> divisore 15 (bassa sensibilità). Slider a 10 -> divisore 6 (alta sensibilità).
         const divisor = 16 - sliderValue;
 
         const threshold = 0.4;
