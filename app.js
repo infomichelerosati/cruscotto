@@ -27,15 +27,20 @@ document.addEventListener('DOMContentLoaded', () => {
     speedGauge.style.strokeDashoffset = gaugeCircumference;
 
     const MAX_SPEED = 200;
-    const STILLNESS_THRESHOLD_MS = 2000; // 2 secondi senza movimento per considerare il dispositivo fermo
+    const STILLNESS_THRESHOLD_MS = 2000; // 2 secondi per azzerare la velocità
+    const AUTO_CALIBRATE_THRESHOLD_MS = 5000; // 5 secondi di inattività per calibrazione automatica
+    const AUTO_CALIBRATE_COOLDOWN_MS = 10000; // Intervallo minimo tra calibrazioni automatiche
+
     let wakeLock = null;
 
     // Variabili per la calibrazione
     let pitchOffset = 0;
     let rollOffset = 0;
     
-    // Timestamp dell'ultimo movimento rilevato
+    // Variabili per la logica di inattività
     let lastMovementTime = Date.now();
+    let lastAutoCalibrateTime = 0;
+    let isCalibrating = false; // Flag per evitare calibrazioni sovrapposte
 
     const requestWakeLock = async () => {
         if ('wakeLock' in navigator) {
@@ -59,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     permissionBtn.addEventListener('click', requestPermissions);
-    calibrateBtn.addEventListener('click', calibrateSensors);
+    calibrateBtn.addEventListener('click', () => calibrateSensors(false)); // Click manuale
 
     async function requestPermissions() {
         try {
@@ -84,9 +89,23 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', updateAttitude);
     }
 
-    function calibrateSensors() {
-        calibrateBtn.classList.add('calibrating');
-        calibrateBtn.disabled = true;
+    /**
+     * Funzione centrale per la calibrazione, gestisce sia la chiamata manuale che automatica.
+     * @param {boolean} isAuto - True se la calibrazione è stata chiamata automaticamente.
+     */
+    function calibrateSensors(isAuto = false) {
+        if (isCalibrating) return; // Evita calibrazioni sovrapposte
+        isCalibrating = true;
+
+        if (!isAuto) { // Feedback visivo per il click manuale
+            calibrateBtn.classList.add('calibrating');
+            calibrateBtn.disabled = true;
+        } else {
+            console.log("Avvio calibrazione automatica...");
+            // Feedback visivo leggero per la calibrazione automatica
+            calibrateBtn.style.transition = 'opacity 0.2s';
+            calibrateBtn.style.opacity = '0.5';
+        }
 
         const handleOrientation = (event) => {
             pitchOffset = event.beta || 0;
@@ -98,10 +117,18 @@ document.addEventListener('DOMContentLoaded', () => {
             pitchValue.textContent = '0°';
             rollValue.textContent = '0°';
             lastMovementTime = Date.now(); // Resetta il timer di movimento
+            if (isAuto) {
+                lastAutoCalibrateTime = Date.now(); // Aggiorna il tempo dell'ultima calibrazione auto
+            }
             
             setTimeout(() => {
-                calibrateBtn.classList.remove('calibrating');
-                calibrateBtn.disabled = false;
+                if (!isAuto) {
+                    calibrateBtn.classList.remove('calibrating');
+                    calibrateBtn.disabled = false;
+                } else {
+                    calibrateBtn.style.opacity = '1';
+                }
+                isCalibrating = false; // Resetta il flag
             }, 500);
         };
 
@@ -111,12 +138,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
-        // --- NUOVA LOGICA DI CONTROLLO MOVIMENTO ---
-        // Controlla quanto tempo è passato dall'ultimo movimento rilevato
         const timeSinceLastMovement = Date.now() - lastMovementTime;
-        
-        // Se è passato troppo tempo, significa che il dispositivo è fermo.
-        // Forza la velocità a 0 per ignorare le letture GPS fantasma.
+
+        // --- NUOVA LOGICA DI CALIBRAZIONE AUTOMATICA ---
+        const timeSinceLastCalibrate = Date.now() - lastAutoCalibrateTime;
+        // Se fermo da 5s E non abbiamo calibrato negli ultimi 10s
+        if (timeSinceLastMovement > AUTO_CALIBRATE_THRESHOLD_MS && timeSinceLastCalibrate > AUTO_CALIBRATE_COOLDOWN_MS) {
+            calibrateSensors(true); // Esegui calibrazione automatica
+        }
+
+        // Logica per azzerare la velocità se fermo da 2s
         if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
             speedKmh = 0;
         }
@@ -140,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         speedGauge.style.stroke = gaugeColor;
 
-        // Cambia colore del testo della velocità sopra i 160 km/h
+        // Cambia colore del testo della velocità
         if (speedKmh > 160) {
             speedValue.classList.add('text-red-500');
             speedValue.classList.remove('text-white');
@@ -151,13 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateAttitude(event) {
-        // Ogni volta che questo evento viene attivato, significa che il dispositivo si sta muovendo.
-        // Aggiorniamo il timestamp dell'ultimo movimento.
-        lastMovementTime = Date.now();
+        lastMovementTime = Date.now(); // Ogni evento di orientamento è un movimento
 
         if (event.beta === null || event.gamma === null) return;
 
-        // --- Logica per l'assetto ---
         const calibratedPitch = event.beta - pitchOffset;
         const calibratedRoll = event.gamma - rollOffset;
 
@@ -167,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         rollValue.textContent = `${Math.abs(calibratedRoll).toFixed(0)}°`;
         pitchValue.textContent = `${Math.abs(calibratedPitch).toFixed(0)}°`;
 
-        // --- Logica per le barre di potenza basata sul Pitch ---
         const pitchThreshold = 1.0; 
         const sensitivity = sensitivitySlider.value;
         const maxPitchForPower = 30 - (sensitivity * 1.5); 
@@ -176,11 +203,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let brakePercent = 0;
 
         if (calibratedPitch > pitchThreshold) { 
-            const brakePitch = calibratedPitch - pitchThreshold;
-            brakePercent = Math.min((brakePitch / maxPitchForPower) * 100, 100);
-        } else if (calibratedPitch < -pitchThreshold) { 
-            const accelPitch = Math.abs(calibratedPitch) - pitchThreshold;
+            const accelPitch = calibratedPitch - pitchThreshold;
             accelPercent = Math.min((accelPitch / maxPitchForPower) * 100, 100);
+        } else if (calibratedPitch < -pitchThreshold) { 
+            const brakePitch = Math.abs(calibratedPitch) - pitchThreshold;
+            brakePercent = Math.min((brakePitch / maxPitchForPower) * 100, 100);
         }
         
         accelBar.style.width = `${accelPercent}%`;
