@@ -12,11 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const accelBar = document.getElementById('accel-bar');
     const brakeBar = document.getElementById('brake-bar');
     
-    // Elementi per l'assetto
+    // *** SELEZIONA LE IMMAGINI PNG INVECE DEGLI SVG ***
     const rollValue = document.getElementById('roll-value');
     const pitchValue = document.getElementById('pitch-value');
-    const rearCarSvg = document.getElementById('rear-car-svg');
-    const sideCarSvg = document.getElementById('side-car-svg');
+    const rearCarImg = document.getElementById('rear-car-img');
+    const sideCarImg = document.getElementById('side-car-img');
 
     const calibrateBtn = document.getElementById('calibrate-btn');
     const sensitivitySlider = document.getElementById('sensitivity-slider');
@@ -88,7 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calibrateSensors() {
-        // Feedback visivo: animazione di rotazione
         calibrateBtn.classList.add('calibrating');
         calibrateBtn.disabled = true;
 
@@ -104,15 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log(`Sensori calibrati. Offset: Z=${accelOffsetZ.toFixed(2)}, Pitch=${pitchOffset.toFixed(2)}, Roll=${rollOffset.toFixed(2)}`);
             
-            // Resetta i valori a schermo
             pitchValue.textContent = '0°';
             rollValue.textContent = '0°';
             
-            // Rimuovi l'animazione e riabilita il pulsante
             setTimeout(() => {
                 calibrateBtn.classList.remove('calibrating');
                 calibrateBtn.disabled = false;
-            }, 500); // Durata dell'animazione
+            }, 500);
         };
 
         window.addEventListener('devicemotion', handleMotion, true);
@@ -121,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
-        if (speedKmh < 3) speedKmh = 0; // Soglia di velocità
+        if (speedKmh < 3) speedKmh = 0;
 
         const displaySpeed = speedKmh.toFixed(0);
         speedValue.textContent = displaySpeed;
@@ -148,19 +145,17 @@ document.addEventListener('DOMContentLoaded', () => {
         brakeBar.style.width = `${brakePercent}%`;
     }
 
-    // *** FUNZIONE ASSETTO AGGIORNATA ***
+    // *** FUNZIONE ASSETTO AGGIORNATA PER LE IMMAGINI ***
     function updateOrientation(event) {
         if (!event.beta || !event.gamma) return;
 
-        // Applica l'offset di calibrazione
         const calibratedPitch = event.beta - pitchOffset;
         const calibratedRoll = event.gamma - rollOffset;
 
-        // Applica la rotazione alle icone SVG
-        rearCarSvg.style.transform = `rotate(${calibratedRoll}deg)`;
-        sideCarSvg.style.transform = `rotate(${calibratedPitch}deg)`;
+        // Applica la rotazione alle immagini PNG
+        rearCarImg.style.transform = `rotate(${calibratedRoll}deg)`;
+        sideCarImg.style.transform = `rotate(${calibratedPitch}deg)`;
 
-        // Aggiorna il testo con i gradi (valore assoluto)
         rollValue.textContent = `${Math.abs(calibratedRoll).toFixed(0)}°`;
         pitchValue.textContent = `${Math.abs(calibratedPitch).toFixed(0)}°`;
     }
