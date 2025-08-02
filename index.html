@@ -35,6 +35,39 @@
         .gauge-bar-brake {
              background: linear-gradient(90deg, #b91c1c, #ef4444, #fca5a5);
         }
+        /* Stili personalizzati per il range slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            background: #1e293b;
+            height: 6px;
+            border-radius: 3px;
+        }
+        input[type=range]::-moz-range-track {
+            background: #1e293b;
+            height: 6px;
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -7px; /* Centra il thumb sulla traccia */
+            background-color: #0ea5e9;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+        }
+        input[type=range]::-moz-range-thumb {
+            border: none;
+            background-color: #0ea5e9;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
@@ -55,9 +88,7 @@
         <!-- Tachimetro principale -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
             <svg class="transform -rotate-90 w-full h-full">
-                <!-- Cerchio di sfondo -->
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
-                <!-- Arco del tachimetro -->
                 <circle id="speed-gauge" cx="50%" cy="50%" r="45%" stroke="#0ea5e9" stroke-width="12" fill="transparent"
                     stroke-linecap="round"
                     class="transition-all duration-200"
@@ -74,11 +105,9 @@
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">POTENZA</div>
             <div class="flex items-center justify-center space-x-2">
-                <!-- Barra Frenata -->
                 <div class="w-1/2 bg-slate-800 h-6 rounded-full flex justify-end">
                     <div id="brake-bar" class="gauge-bar-brake h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
                 </div>
-                <!-- Barra Accelerazione -->
                 <div class="w-1/2 bg-slate-800 h-6 rounded-full">
                     <div id="accel-bar" class="gauge-bar-filled h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
                 </div>
@@ -86,6 +115,16 @@
              <div class="flex items-center justify-between mt-2 text-xs text-slate-400">
                 <span>FRENO</span>
                 <span>ACCEL</span>
+            </div>
+
+            <!-- *** NUOVA SEZIONE SENSIBILITÀ *** -->
+            <div class="mt-6">
+                <label for="sensitivity-slider" class="block text-center text-sm text-slate-400 mb-2">SENSIBILITÀ</label>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-slate-500">Bassa</span>
+                    <input id="sensitivity-slider" type="range" min="1" max="10" value="4" class="w-full">
+                    <span class="text-xs text-slate-500">Alta</span>
+                </div>
             </div>
         </div>
         
@@ -102,7 +141,6 @@
                     <div id="pitch-value" class="text-2xl font-bold text-white">0°</div>
                 </div>
             </div>
-            <!-- *** NUOVO PULSANTE DI CALIBRAZIONE *** -->
             <div class="text-center mt-6">
                 <button id="calibrate-btn" class="bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold py-2 px-5 rounded-lg shadow-md transition-all duration-300">
                     Calibra Posizione
