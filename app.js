@@ -36,12 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const gaugeRadius = speedGaugeGreen.r.baseVal.value;
     const circumference = 2 * Math.PI * gaugeRadius;
 
-    // --- CORREZIONE: Inizializzazione corretta dei cerchi ---
-    // Imposta la circonferenza e inizializza i segmenti a zero
+    // Inizializzazione corretta dei cerchi
     allGauges.forEach(gauge => {
-        // Rimuove qualsiasi offset precedente che causava il bug
         gauge.style.strokeDashoffset = 0; 
-        // Inizializza il segmento come invisibile (trattino di lunghezza 0)
         gauge.style.strokeDasharray = `0 ${circumference}`;
     });
 
@@ -170,12 +167,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const displaySpeed = speedKmh.toFixed(0);
         speedValue.textContent = displaySpeed;
+        
+        // --- CORREZIONE: Limita la velocità per il disegno del tachimetro a MAX_SPEED ---
+        const speedForGauge = Math.min(speedKmh, MAX_SPEED);
 
-        // Calcola la lunghezza di ogni segmento in base alla velocità
-        const greenLen = (Math.min(speedKmh, SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
-        const yellowLen = (Math.max(0, Math.min(speedKmh, SPEED_YELLOW_MAX) - SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
-        const orangeLen = (Math.max(0, Math.min(speedKmh, SPEED_ORANGE_MAX) - SPEED_YELLOW_MAX) / MAX_SPEED) * circumference;
-        const redLen = (Math.max(0, speedKmh - SPEED_ORANGE_MAX) / MAX_SPEED) * circumference;
+        // Calcola la lunghezza di ogni segmento in base alla velocità limitata
+        const greenLen = (Math.min(speedForGauge, SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
+        const yellowLen = (Math.max(0, Math.min(speedForGauge, SPEED_YELLOW_MAX) - SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
+        const orangeLen = (Math.max(0, Math.min(speedForGauge, SPEED_ORANGE_MAX) - SPEED_YELLOW_MAX) / MAX_SPEED) * circumference;
+        const redLen = (Math.max(0, speedForGauge - SPEED_ORANGE_MAX) / MAX_SPEED) * circumference;
 
         // Calcola lo spazio vuoto (gap) prima di ogni segmento
         const yellowGap = (SPEED_GREEN_MAX / MAX_SPEED) * circumference;
