@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'futuristic-speedometer-cache-v2';
+const CACHE_NAME = 'futuristic-speedometer-cache-v3';
 const urlsToCache = [
     '/',
     'index.html',
@@ -51,4 +51,5 @@ self.addEventListener('activate', event => {
         })
     );
 });
+
 
