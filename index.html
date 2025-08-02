@@ -28,14 +28,12 @@
         .gauge-bar-filled { background: linear-gradient(90deg, #0369a1, #0ea5e9, #67e8f9); }
         .gauge-bar-brake { background: linear-gradient(90deg, #b91c1c, #ef4444, #fca5a5); }
         
-        /* Stili per lo slider */
         input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
         input[type=range]::-webkit-slider-runnable-track { background: #1e293b; height: 6px; border-radius: 3px; }
         input[type=range]::-moz-range-track { background: #1e293b; height: 6px; border-radius: 3px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -7px; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
         input[type=range]::-moz-range-thumb { border: none; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
 
-        /* Animazione per la calibrazione */
         .calibrating { animation: spin 0.5s ease-in-out; }
         @keyframes spin {
             from { transform: rotate(0deg); }
@@ -54,15 +52,12 @@
         <p id="error-message" class="text-red-500 mt-4"></p>
     </div>
 
-    <!-- Interfaccia principale del tachimetro -->
     <main id="dashboard" class="hidden relative w-full h-full p-4 flex flex-col items-center justify-around">
         
-        <!-- NUOVO PULSANTE CALIBRAZIONE (ICONA) -->
         <button id="calibrate-btn" class="absolute top-5 right-5 text-cyan-400 hover:text-white transition-colors z-10">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
         </button>
 
-        <!-- Tachimetro principale -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
             <svg class="transform -rotate-90 w-full h-full">
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
@@ -75,7 +70,6 @@
             </div>
         </div>
 
-        <!-- Sezione Potenza -->
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">POTENZA</div>
             <div class="flex items-center justify-center space-x-2">
@@ -100,30 +94,24 @@
             </div>
         </div>
         
-        <!-- NUOVA SEZIONE ASSETTO VISIVA -->
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">ASSETTO</div>
             <div class="grid grid-cols-2 gap-4 text-center">
-                <!-- Visuale Inclinazione (Roll) -->
+                <!-- Visuale Inclinazione con PNG -->
                 <div>
                     <div class="h-20 flex items-center justify-center">
-                        <svg id="rear-car-svg" class="w-24 h-auto transition-transform duration-100" viewBox="0 0 100 60" style="transform-origin: center;">
-                            <path d="M20,50 L80,50 L85,30 L95,30 L95,20 L5,20 L5,30 L15,30 L20,50 Z" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
-                            <rect x="25" y="25" width="50" height="15" fill="#0a0a0a" stroke="#0ea5e9" stroke-width="1"/>
-                            <circle cx="15" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
-                            <circle cx="85" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
-                        </svg>
+                        <img id="rear-car-img" src="images/rear-car.png" alt="Vista posteriore auto" 
+                             onerror="this.onerror=null;this.src='https://placehold.co/100x60/0a0a0a/ff0000?text=Manca+Img';"
+                             class="w-24 h-auto transition-transform duration-100" style="transform-origin: center;">
                     </div>
                     <div id="roll-value" class="text-xl font-bold text-white mt-2">0°</div>
                 </div>
-                <!-- Visuale Beccheggio (Pitch) -->
+                <!-- Visuale Beccheggio con PNG -->
                 <div>
                     <div class="h-20 flex items-center justify-center">
-                        <svg id="side-car-svg" class="w-28 h-auto transition-transform duration-100" viewBox="0 0 120 60" style="transform-origin: center;">
-                             <path d="M10,50 L110,50 L100,30 L70,30 L60,20 L20,20 L10,35 Z" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
-                             <circle cx="25" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
-                             <circle cx="95" cy="50" r="8" fill="#1e293b" stroke="#67e8f9" stroke-width="1.5" />
-                        </svg>
+                         <img id="side-car-img" src="images/side-car.png" alt="Vista laterale auto"
+                              onerror="this.onerror=null;this.src='https://placehold.co/120x60/0a0a0a/ff0000?text=Manca+Img';"
+                              class="w-28 h-auto transition-transform duration-100" style="transform-origin: center;">
                     </div>
                     <div id="pitch-value" class="text-xl font-bold text-white mt-2">0°</div>
                 </div>
