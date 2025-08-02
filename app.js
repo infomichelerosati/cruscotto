@@ -36,10 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const gaugeRadius = speedGaugeGreen.r.baseVal.value;
     const circumference = 2 * Math.PI * gaugeRadius;
 
-    // Imposta la circonferenza su tutti i cerchi
+    // --- CORREZIONE: Inizializzazione corretta dei cerchi ---
+    // Imposta la circonferenza e inizializza i segmenti a zero
     allGauges.forEach(gauge => {
-        gauge.style.strokeDasharray = `${circumference} ${circumference}`;
-        gauge.style.strokeDashoffset = circumference;
+        // Rimuove qualsiasi offset precedente che causava il bug
+        gauge.style.strokeDashoffset = 0; 
+        // Inizializza il segmento come invisibile (trattino di lunghezza 0)
+        gauge.style.strokeDasharray = `0 ${circumference}`;
     });
 
     const STILLNESS_THRESHOLD_MS = 2000;
@@ -151,9 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
-    /**
-     * NUOVA FUNZIONE PER AGGIORNARE IL TACHIMETRO PROGRESSIVO
-     */
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
