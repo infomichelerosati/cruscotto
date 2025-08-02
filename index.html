@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tachimetro GPS Futuristico</title>
+    
+    <meta name="theme-color" content="#0a0a0a"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tachimetro">
+    <meta name="description" content="Un tachimetro GPS futuristico con indicatori di accelerazione e inclinazione.">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .gauge-bar-filled { background: linear-gradient(90deg, #0369a1, #0ea5e9, #67e8f9); }
+        .gauge-bar-brake { background: linear-gradient(90deg, #b91c1c, #ef4444, #fca5a5); }
+        
+        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { background: #1e293b; height: 6px; border-radius: 3px; }
+        input[type=range]::-moz-range-track { background: #1e293b; height: 6px; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -7px; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
+        input[type=range]::-moz-range-thumb { border: none; background-color: #0ea5e9; height: 20px; width: 20px; border-radius: 50%; }
+
+        .calibrating { animation: spin 0.5s ease-in-out; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
+
+    <div id="permission-screen" class="text-center p-8">
+        <h1 class="text-3xl font-bold mb-4 text-white">Tachimetro Futuristico</h1>
+        <p class="mb-8 text-slate-300">Per iniziare, è necessario concedere i permessi per accedere al GPS e ai sensori di movimento del dispositivo.</p>
+        <button id="permission-btn" class="bg-cyan-500 hover:bg-cyan-600 text-black font-bold py-3 px-6 rounded-lg shadow-lg shadow-cyan-500/30 transition-all duration-300">
+            Abilita Sensori
+        </button>
+        <p id="error-message" class="text-red-500 mt-4"></p>
+    </div>
+
+    <main id="dashboard" class="hidden relative w-full h-full p-4 flex flex-col items-center justify-around">
+        
+        <button id="calibrate-btn" class="absolute top-5 right-5 text-cyan-400 hover:text-white transition-colors z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+        </button>
+
+        <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
+            <svg class="transform -rotate-90 w-full h-full">
+                <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
+                <circle id="speed-gauge" cx="50%" cy="50%" r="45%" stroke="#0ea5e9" stroke-width="12" fill="transparent"
+                    stroke-linecap="round" class="transition-all duration-200" stroke-dasharray="1000" stroke-dashoffset="1000" />
+            </svg>
+            <div class="absolute text-center">
+                <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white">0</span>
+                <span class="block text-xl text-cyan-400">km/h</span>
+            </div>
+        </div>
+
+        <div class="w-full max-w-md p-4">
+            <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">POTENZA</div>
+            <div class="flex items-center justify-center space-x-2">
+                <div class="w-1/2 bg-slate-800 h-6 rounded-full flex justify-end">
+                    <div id="brake-bar" class="gauge-bar-brake h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
+                </div>
+                <div class="w-1/2 bg-slate-800 h-6 rounded-full">
+                    <div id="accel-bar" class="gauge-bar-filled h-full rounded-full transition-all duration-200" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-xs text-slate-400">
+                <span>FRENO</span>
+                <span>ACCEL</span>
+            </div>
+            <div class="mt-6">
+                <label for="sensitivity-slider" class="block text-center text-sm text-slate-400 mb-2">SENSIBILITÀ</label>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-slate-500">Bassa</span>
+                    <input id="sensitivity-slider" type="range" min="1" max="10" value="4" class="w-full">
+                    <span class="text-xs text-slate-500">Alta</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="w-full max-w-md p-4">
+            <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">ASSETTO</div>
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <!-- Visuale Inclinazione con PNG -->
+                <div>
+                    <div class="h-20 flex items-center justify-center">
+                        <img id="rear-car-img" src="images/rear-car.png" alt="Vista posteriore auto" 
+                             onerror="this.onerror=null;this.src='https://placehold.co/100x60/0a0a0a/ff0000?text=Manca+Img';"
+                             class="w-24 h-auto transition-transform duration-100" style="transform-origin: center;">
+                    </div>
+                    <div id="roll-value" class="text-xl font-bold text-white mt-2">0°</div>
+                </div>
+                <!-- Visuale Beccheggio con PNG -->
+                <div>
+                    <div class="h-20 flex items-center justify-center">
+                         <img id="side-car-img" src="images/side-car.png" alt="Vista laterale auto"
+                              onerror="this.onerror=null;this.src='https://placehold.co/120x60/0a0a0a/ff0000?text=Manca+Img';"
+                              class="w-28 h-auto transition-transform duration-100" style="transform-origin: center;">
+                    </div>
+                    <div id="pitch-value" class="text-xl font-bold text-white mt-2">0°</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
