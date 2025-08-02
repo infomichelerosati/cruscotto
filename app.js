@@ -168,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const displaySpeed = speedKmh.toFixed(0);
         speedValue.textContent = displaySpeed;
         
-        // --- CORREZIONE: Limita la velocità per il disegno del tachimetro a MAX_SPEED ---
         const speedForGauge = Math.min(speedKmh, MAX_SPEED);
 
         // Calcola la lunghezza di ogni segmento in base alla velocità limitata
@@ -182,11 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const orangeGap = (SPEED_YELLOW_MAX / MAX_SPEED) * circumference;
         const redGap = (SPEED_ORANGE_MAX / MAX_SPEED) * circumference;
 
-        // Applica i valori di dasharray per disegnare ogni segmento al posto giusto
+        // --- CORREZIONE LOGICA DI DISEGNO ---
+        // Applica i valori di dasharray corretti per disegnare ogni segmento
         speedGaugeGreen.style.strokeDasharray = `${greenLen} ${circumference}`;
-        speedGaugeYellow.style.strokeDasharray = `0 ${yellowGap} ${yellowLen} ${circumference}`;
-        speedGaugeOrange.style.strokeDasharray = `0 ${orangeGap} ${orangeLen} ${circumference}`;
-        speedGaugeRed.style.strokeDasharray = `0 ${redGap} ${redLen} ${circumference}`;
+        
+        // Per i segmenti successivi, definiamo: gap iniziale, lunghezza del segmento, e il gap rimanente
+        speedGaugeYellow.style.strokeDasharray = `0 ${yellowGap} ${yellowLen} ${circumference - yellowGap - yellowLen}`;
+        speedGaugeOrange.style.strokeDasharray = `0 ${orangeGap} ${orangeLen} ${circumference - orangeGap - orangeLen}`;
+        speedGaugeRed.style.strokeDasharray = `0 ${redGap} ${redLen} ${circumference - redGap - redLen}`;
 
         // Cambia colore del testo della velocità
         if (speedKmh > SPEED_ORANGE_MAX) {
