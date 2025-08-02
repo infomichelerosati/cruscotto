@@ -9,7 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const startupCalibrationPopup = document.getElementById('startup-calibration-popup');
 
     const speedValue = document.getElementById('speed-value');
-    const speedGauge = document.getElementById('speed-gauge');
+    // Seleziona tutti i cerchi del tachimetro
+    const speedGaugeGreen = document.getElementById('speed-gauge-green');
+    const speedGaugeYellow = document.getElementById('speed-gauge-yellow');
+    const speedGaugeOrange = document.getElementById('speed-gauge-orange');
+    const speedGaugeRed = document.getElementById('speed-gauge-red');
+    const allGauges = [speedGaugeGreen, speedGaugeYellow, speedGaugeOrange, speedGaugeRed];
+
     const accelBar = document.getElementById('accel-bar');
     const brakeBar = document.getElementById('brake-bar');
     
@@ -21,27 +27,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrateBtn = document.getElementById('calibrate-btn');
     const sensitivitySlider = document.getElementById('sensitivity-slider');
 
-    // Calcola la circonferenza del cerchio del tachimetro
-    const gaugeRadius = speedGauge.r.baseVal.value;
-    const gaugeCircumference = 2 * Math.PI * gaugeRadius;
-    speedGauge.style.strokeDasharray = gaugeCircumference;
-    speedGauge.style.strokeDashoffset = gaugeCircumference;
-
+    // Costanti per le soglie di velocità
+    const SPEED_GREEN_MAX = 90;
+    const SPEED_YELLOW_MAX = 130;
+    const SPEED_ORANGE_MAX = 160;
     const MAX_SPEED = 200;
-    const STILLNESS_THRESHOLD_MS = 2000; // 2 secondi per azzerare la velocità
-    const AUTO_CALIBRATE_THRESHOLD_MS = 5000; // 5 secondi di inattività per calibrazione automatica
-    const AUTO_CALIBRATE_COOLDOWN_MS = 10000; // Intervallo minimo tra calibrazioni automatiche
+
+    const gaugeRadius = speedGaugeGreen.r.baseVal.value;
+    const circumference = 2 * Math.PI * gaugeRadius;
+
+    // Imposta la circonferenza su tutti i cerchi
+    allGauges.forEach(gauge => {
+        gauge.style.strokeDasharray = `${circumference} ${circumference}`;
+        gauge.style.strokeDashoffset = circumference;
+    });
+
+    const STILLNESS_THRESHOLD_MS = 2000;
+    const AUTO_CALIBRATE_THRESHOLD_MS = 5000;
+    const AUTO_CALIBRATE_COOLDOWN_MS = 10000;
 
     let wakeLock = null;
-
-    // Variabili per la calibrazione
     let pitchOffset = 0;
     let rollOffset = 0;
-    
-    // Variabili per la logica di inattività
     let lastMovementTime = Date.now();
     let lastAutoCalibrateTime = 0;
-    let isCalibrating = false; // Flag per evitare calibrazioni sovrapposte
+    let isCalibrating = false;
 
     const requestWakeLock = async () => {
         if ('wakeLock' in navigator) {
@@ -65,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     permissionBtn.addEventListener('click', requestPermissions);
-    calibrateBtn.addEventListener('click', () => calibrateSensors(false)); // Click manuale
+    calibrateBtn.addEventListener('click', () => calibrateSensors(false));
 
     async function requestPermissions() {
         try {
@@ -77,16 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             startListeners();
             
-            // --- NUOVA LOGICA DI AVVIO ---
             permissionScreen.classList.add('hidden');
             startupCalibrationPopup.classList.remove('hidden');
 
             setTimeout(() => {
-                calibrateSensors(true); // Esegui calibrazione iniziale silenziosa
+                calibrateSensors(true);
                 startupCalibrationPopup.classList.add('hidden');
                 dashboard.classList.remove('hidden');
                 requestWakeLock();
-            }, 2000); // Attendi 2 secondi
+            }, 2000);
 
         } catch (error) {
             console.error("Errore permessi:", error);
@@ -101,20 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', updateAttitude);
     }
 
-    /**
-     * Funzione centrale per la calibrazione, gestisce sia la chiamata manuale che automatica.
-     * @param {boolean} isAuto - True se la calibrazione è stata chiamata automaticamente.
-     */
     function calibrateSensors(isAuto = false) {
-        if (isCalibrating) return; // Evita calibrazioni sovrapposte
+        if (isCalibrating) return;
         isCalibrating = true;
 
-        if (!isAuto) { // Feedback visivo per il click manuale
+        if (!isAuto) {
             calibrateBtn.classList.add('calibrating');
             calibrateBtn.disabled = true;
         } else {
             console.log("Avvio calibrazione automatica/iniziale...");
-            // Feedback visivo leggero per la calibrazione automatica
             calibrateBtn.style.transition = 'opacity 0.2s';
             calibrateBtn.style.opacity = '0.5';
         }
@@ -128,9 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             pitchValue.textContent = '0°';
             rollValue.textContent = '0°';
-            lastMovementTime = Date.now(); // Resetta il timer di movimento
+            lastMovementTime = Date.now();
             if (isAuto) {
-                lastAutoCalibrateTime = Date.now(); // Aggiorna il tempo dell'ultima calibrazione auto
+                lastAutoCalibrateTime = Date.now();
             }
             
             setTimeout(() => {
@@ -140,50 +144,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     calibrateBtn.style.opacity = '1';
                 }
-                isCalibrating = false; // Resetta il flag
+                isCalibrating = false;
             }, 500);
         };
 
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
+    /**
+     * NUOVA FUNZIONE PER AGGIORNARE IL TACHIMETRO PROGRESSIVO
+     */
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
         const timeSinceLastMovement = Date.now() - lastMovementTime;
 
-        // Logica di calibrazione automatica
         const timeSinceLastCalibrate = Date.now() - lastAutoCalibrateTime;
         if (timeSinceLastMovement > AUTO_CALIBRATE_THRESHOLD_MS && timeSinceLastCalibrate > AUTO_CALIBRATE_COOLDOWN_MS) {
             calibrateSensors(true);
         }
 
-        // Logica per azzerare la velocità
         if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
             speedKmh = 0;
         }
 
         const displaySpeed = speedKmh.toFixed(0);
         speedValue.textContent = displaySpeed;
-        const speedFraction = Math.min(displaySpeed / MAX_SPEED, 1);
-        const offset = gaugeCircumference * (1 - speedFraction);
-        speedGauge.style.strokeDashoffset = offset;
 
-        // Logica per il colore dinamico
-        let gaugeColor;
-        if (speedKmh < 90) {
-            gaugeColor = '#22c55e'; // Verde
-        } else if (speedKmh < 130) {
-            gaugeColor = '#eab308'; // Giallo
-        } else if (speedKmh < 160) {
-            gaugeColor = '#f97316'; // Arancione
-        } else {
-            gaugeColor = '#ef4444'; // Rosso
-        }
-        speedGauge.style.stroke = gaugeColor;
+        // Calcola la lunghezza di ogni segmento in base alla velocità
+        const greenLen = (Math.min(speedKmh, SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
+        const yellowLen = (Math.max(0, Math.min(speedKmh, SPEED_YELLOW_MAX) - SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
+        const orangeLen = (Math.max(0, Math.min(speedKmh, SPEED_ORANGE_MAX) - SPEED_YELLOW_MAX) / MAX_SPEED) * circumference;
+        const redLen = (Math.max(0, speedKmh - SPEED_ORANGE_MAX) / MAX_SPEED) * circumference;
+
+        // Calcola lo spazio vuoto (gap) prima di ogni segmento
+        const yellowGap = (SPEED_GREEN_MAX / MAX_SPEED) * circumference;
+        const orangeGap = (SPEED_YELLOW_MAX / MAX_SPEED) * circumference;
+        const redGap = (SPEED_ORANGE_MAX / MAX_SPEED) * circumference;
+
+        // Applica i valori di dasharray per disegnare ogni segmento al posto giusto
+        speedGaugeGreen.style.strokeDasharray = `${greenLen} ${circumference}`;
+        speedGaugeYellow.style.strokeDasharray = `0 ${yellowGap} ${yellowLen} ${circumference}`;
+        speedGaugeOrange.style.strokeDasharray = `0 ${orangeGap} ${orangeLen} ${circumference}`;
+        speedGaugeRed.style.strokeDasharray = `0 ${redGap} ${redLen} ${circumference}`;
 
         // Cambia colore del testo della velocità
-        if (speedKmh > 160) {
+        if (speedKmh > SPEED_ORANGE_MAX) {
             speedValue.classList.add('text-red-500');
             speedValue.classList.remove('text-white');
         } else {
@@ -193,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateAttitude(event) {
-        lastMovementTime = Date.now(); // Ogni evento di orientamento è un movimento
+        lastMovementTime = Date.now();
 
         if (event.beta === null || event.gamma === null) return;
 
