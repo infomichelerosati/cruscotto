@@ -21,6 +21,41 @@ document.addEventListener('DOMContentLoaded', () => {
     speedGauge.style.strokeDashoffset = gaugeCircumference;
 
     const MAX_SPEED = 200; // Velocità massima in km/h per il tachimetro
+    
+    // Variabile per gestire il blocco dello schermo
+    let wakeLock = null;
+
+    // *** NUOVA FUNZIONE PER IL BLOCCO SCHERMO ***
+    // Richiede di mantenere lo schermo attivo
+    const requestWakeLock = async () => {
+        // Controlla se l'API è supportata dal browser
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Screen Wake Lock attivato.');
+
+                // Ascolta l'evento di rilascio (es. se si cambia tab)
+                wakeLock.addEventListener('release', () => {
+                    console.log('Screen Wake Lock rilasciato.');
+                    wakeLock = null;
+                });
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+                showError('Impossibile mantenere lo schermo attivo.');
+            }
+        } else {
+            console.warn('API Wake Lock non supportata.');
+        }
+    };
+
+    // Gestisce il cambio di visibilità della pagina per riattivare il blocco
+    const handleVisibilityChange = async () => {
+        if (wakeLock === null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
 
     // Gestione del Service Worker per la PWA
     if ('serviceWorker' in navigator) {
@@ -63,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
             permissionScreen.classList.add('hidden');
             dashboard.classList.remove('hidden');
 
+            // *** ATTIVAZIONE BLOCCO SCHERMO ***
+            await requestWakeLock();
+
         } catch (error) {
             console.error("Errore durante la richiesta dei permessi:", error);
             showError("Impossibile abilitare i sensori. Assicurati di usare HTTPS.");
@@ -96,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // *** LOGICA DI ACCELERAZIONE CORRETTA ***
+    // LOGICA DI ACCELERAZIONE CORRETTA
     function updateAcceleration(event) {
         // Usiamo event.acceleration che esclude la gravità per misurare la vera accelerazione.
         if (!event.acceleration) {
