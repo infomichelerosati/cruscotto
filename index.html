@@ -39,49 +39,9 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
-        /* --- Stili per il box "Powered By" --- */
-        #powered-by {
-            font-size: 0.6rem; /* Carattere piccolo, come richiesto (h6) */
-            font-weight: 500;
-            z-index: 50; /* Assicura che sia sopra gli altri elementi */
-            /* Applico le due animazioni: una per il colore, una per la pulsazione */
-            animation: color-cycle 16s linear infinite, pulse 4s ease-in-out infinite;
-        }
-
-        /* Animazione per il cambio colore fluido */
-        @keyframes color-cycle {
-            0%   { color: #0ea5e9; } /* cyan */
-            12.5% { color: #d946ef; } /* fuchsia */
-            25%  { color: #eab308; } /* yellow */
-            37.5% { color: #22c55e; } /* green */
-            50%  { color: #f97316; } /* orange */
-            62.5% { color: #8b5cf6; } /* violet */
-            75%  { color: #ef4444; } /* red */
-            87.5% { color: #3b82f6; } /* blue */
-            100% { color: #0ea5e9; } /* torna al ciano */
-        }
-
-        /* Animazione per l'effetto pulsazione lieve */
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-                opacity: 0.8;
-            }
-            50% {
-                transform: scale(1.05);
-                opacity: 1;
-            }
-        }
-        /* --- Fine stili aggiunti --- */
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
-
-    <!-- Box "Powered By" aggiunto qui -->
-    <div id="powered-by" class="absolute top-2 left-2">
-        Powered By Michele Rosati
-    </div>
 
     <div id="permission-screen" class="text-center p-8">
         <h1 class="text-3xl font-bold mb-4 text-white">Tachimetro Futuristico</h1>
@@ -98,6 +58,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
         </button>
 
+        <!-- Tachimetro con indicatori di velocità minima e massima -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
             <svg class="transform -rotate-90 w-full h-full">
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
@@ -105,9 +66,12 @@
                     stroke-linecap="round" class="transition-all duration-200" stroke-dasharray="1000" stroke-dashoffset="1000" />
             </svg>
             <div class="absolute text-center">
-                <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white">0</span>
+                <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white transition-colors duration-300">0</span>
                 <span class="block text-xl text-cyan-400">km/h</span>
             </div>
+            <!-- Indicatori 0 e 200 -->
+            <span class="absolute bottom-4 left-4 text-slate-500 text-lg font-bold">0</span>
+            <span class="absolute bottom-4 right-4 text-slate-500 text-lg font-bold">200</span>
         </div>
 
         <div class="w-full max-w-md p-4">
