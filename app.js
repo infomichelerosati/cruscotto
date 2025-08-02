@@ -96,22 +96,29 @@ document.addEventListener('DOMContentLoaded', () => {
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // Funzione per aggiornare l'accelerazione
+    // *** LOGICA DI ACCELERAZIONE MODIFICATA ***
     function updateAcceleration(event) {
-        // Usiamo l'asse Y che di solito corrisponde all'avanti/indietro del dispositivo
-        const accelerationY = event.accelerationIncludingGravity.y;
+        // Usiamo l'asse Z dell'accelerometro (con gravità inclusa).
+        // Quando il telefono è verticale, questo asse misura la spinta avanti/indietro.
+        const accelerationZ = event.accelerationIncludingGravity.z;
         
-        // Normalizziamo il valore e applichiamo una soglia per ignorare piccoli movimenti
+        // Impostiamo una soglia per ignorare le vibrazioni e la leggera inclinazione.
+        // Un valore di 1.5 m/s^2 è un buon punto di partenza.
         const threshold = 1.5;
         let accelPercent = 0;
         let brakePercent = 0;
 
-        if (accelerationY > threshold) { // Frenata (il telefono si inclina in avanti)
-            brakePercent = Math.min(((accelerationY - threshold) / 10) * 100, 100);
-        } else if (accelerationY < -threshold) { // Accelerazione (il telefono si inclina indietro)
-            accelPercent = Math.min((Math.abs(accelerationY) - threshold) / 10 * 100, 100);
+        // L'accelerazione del veicolo spinge il telefono all'indietro (valore Z negativo).
+        if (accelerationZ < -threshold) { 
+            // Calcoliamo la percentuale, normalizzando il valore per non essere troppo sensibile.
+            accelPercent = Math.min((Math.abs(accelerationZ) - threshold) / 5 * 100, 100);
+        } 
+        // La frenata spinge il telefono in avanti (valore Z positivo).
+        else if (accelerationZ > threshold) { 
+            brakePercent = Math.min(((accelerationZ - threshold) / 5) * 100, 100);
         }
         
+        // Aggiorniamo le barre
         accelBar.style.width = `${accelPercent}%`;
         brakeBar.style.width = `${brakePercent}%`;
     }
@@ -133,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         speedValue.textContent = '---';
     }
 
-    function showError(message) {
+function showError(message) {
         errorMessage.textContent = message;
     }
 });
