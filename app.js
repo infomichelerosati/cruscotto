@@ -27,11 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
     speedGauge.style.strokeDashoffset = gaugeCircumference;
 
     const MAX_SPEED = 200;
+    const STILLNESS_THRESHOLD_MS = 2000; // 2 secondi senza movimento per considerare il dispositivo fermo
     let wakeLock = null;
 
     // Variabili per la calibrazione
     let pitchOffset = 0;
     let rollOffset = 0;
+    
+    // Timestamp dell'ultimo movimento rilevato
+    let lastMovementTime = Date.now();
 
     const requestWakeLock = async () => {
         if ('wakeLock' in navigator) {
@@ -93,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             pitchValue.textContent = '0°';
             rollValue.textContent = '0°';
+            lastMovementTime = Date.now(); // Resetta il timer di movimento
             
             setTimeout(() => {
                 calibrateBtn.classList.remove('calibrating');
@@ -106,8 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
-        // Se la velocità è molto bassa, la consideriamo 0 per evitare le fluttuazioni del GPS da fermo.
-        if (speedKmh < 3) {
+        // --- NUOVA LOGICA DI CONTROLLO MOVIMENTO ---
+        // Controlla quanto tempo è passato dall'ultimo movimento rilevato
+        const timeSinceLastMovement = Date.now() - lastMovementTime;
+        
+        // Se è passato troppo tempo, significa che il dispositivo è fermo.
+        // Forza la velocità a 0 per ignorare le letture GPS fantasma.
+        if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
             speedKmh = 0;
         }
 
@@ -117,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const offset = gaugeCircumference * (1 - speedFraction);
         speedGauge.style.strokeDashoffset = offset;
 
-        // --- NUOVA LOGICA PER IL COLORE DINAMICO ---
+        // Logica per il colore dinamico
         let gaugeColor;
         if (speedKmh < 90) {
             gaugeColor = '#22c55e'; // Verde
@@ -133,12 +143,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cambia colore del testo della velocità sopra i 160 km/h
         if (speedKmh > 160) {
             speedValue.classList.add('text-red-500');
+            speedValue.classList.remove('text-white');
         } else {
             speedValue.classList.remove('text-red-500');
+            speedValue.classList.add('text-white');
         }
     }
 
     function updateAttitude(event) {
+        // Ogni volta che questo evento viene attivato, significa che il dispositivo si sta muovendo.
+        // Aggiorniamo il timestamp dell'ultimo movimento.
+        lastMovementTime = Date.now();
+
         if (event.beta === null || event.gamma === null) return;
 
         // --- Logica per l'assetto ---
