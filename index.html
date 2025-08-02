@@ -39,6 +39,9 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        .gauge-circle {
+            transition: stroke-dasharray 0.2s ease-out;
+        }
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
@@ -69,20 +72,24 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
         </button>
 
-        <!-- Tachimetro con indicatori di velocità minima e massima -->
+        <!-- Tachimetro con cerchi multipli per i colori progressivi -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
             <svg class="transform -rotate-90 w-full h-full">
+                <!-- Sfondo -->
                 <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
-                <circle id="speed-gauge" cx="50%" cy="50%" r="45%" stroke="#0ea5e9" stroke-width="12" fill="transparent"
-                    stroke-linecap="round" class="transition-all duration-200" stroke-dasharray="1000" stroke-dashoffset="1000" />
+                <!-- Segmenti colorati -->
+                <circle id="speed-gauge-green" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#22c55e" stroke-width="12" fill="transparent" stroke-linecap="round" />
+                <circle id="speed-gauge-yellow" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#eab308" stroke-width="12" fill="transparent" stroke-linecap="round" />
+                <circle id="speed-gauge-orange" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#f97316" stroke-width="12" fill="transparent" stroke-linecap="round" />
+                <circle id="speed-gauge-red" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#ef4444" stroke-width="12" fill="transparent" stroke-linecap="round" />
             </svg>
             <div class="absolute text-center">
                 <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white transition-colors duration-300">0</span>
                 <span class="block text-xl text-cyan-400">km/h</span>
             </div>
-            <!-- Indicatori 0 e 200 (con '200' spostato) -->
+            <!-- Indicatori 0 e 200 -->
             <span class="absolute bottom-4 left-4 text-slate-500 text-lg font-bold">0</span>
-            <span class="absolute bottom-4 right-0 text-slate-500 text-lg font-bold">200</span>
+            <span class="absolute bottom-4 right-2 text-slate-500 text-lg font-bold">200</span>
         </div>
 
         <div class="w-full max-w-md p-4">
@@ -137,4 +144,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
