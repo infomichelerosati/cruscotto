@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const brakeBar = document.getElementById('brake-bar');
     const rollValue = document.getElementById('roll-value');
     const pitchValue = document.getElementById('pitch-value');
+    const calibrateBtn = document.getElementById('calibrate-btn'); // Nuovo pulsante
 
     // Calcola la circonferenza del cerchio del tachimetro
     const gaugeRadius = speedGauge.r.baseVal.value;
@@ -25,16 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Variabile per gestire il blocco dello schermo
     let wakeLock = null;
 
-    // *** NUOVA FUNZIONE PER IL BLOCCO SCHERMO ***
+    // *** VARIABILI PER LA CALIBRAZIONE ***
+    let pitchOffset = 0;
+    let rollOffset = 0;
+    let accelOffsetZ = 0;
+
     // Richiede di mantenere lo schermo attivo
     const requestWakeLock = async () => {
-        // Controlla se l'API è supportata dal browser
         if ('wakeLock' in navigator) {
             try {
                 wakeLock = await navigator.wakeLock.request('screen');
                 console.log('Screen Wake Lock attivato.');
-
-                // Ascolta l'evento di rilascio (es. se si cambia tab)
                 wakeLock.addEventListener('release', () => {
                     console.log('Screen Wake Lock rilasciato.');
                     wakeLock = null;
@@ -56,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-
     // Gestione del Service Worker per la PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js')
@@ -66,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Gestione del click sul pulsante dei permessi
     permissionBtn.addEventListener('click', requestPermissions);
+    // *** LISTENER PER IL PULSANTE DI CALIBRAZIONE ***
+    calibrateBtn.addEventListener('click', calibrateSensors);
 
     async function requestPermissions() {
         try {
@@ -84,23 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
             }
-
             // Richiesta per la geolocalizzazione
             if (!('geolocation' in navigator)) {
                 showError("Geolocalizzazione non supportata dal tuo browser.");
                 return;
             }
-            
-            // Se tutto va a buon fine, avvia i listener
             startListeners();
-            
-            // Mostra il cruscotto e nascondi la schermata dei permessi
             permissionScreen.classList.add('hidden');
             dashboard.classList.remove('hidden');
-
-            // *** ATTIVAZIONE BLOCCO SCHERMO ***
             await requestWakeLock();
-
         } catch (error) {
             console.error("Errore durante la richiesta dei permessi:", error);
             showError("Impossibile abilitare i sensori. Assicurati di usare HTTPS.");
@@ -108,68 +103,86 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startListeners() {
-        // Listener per la geolocalizzazione (velocità)
         navigator.geolocation.watchPosition(updateSpeed, handleLocationError, {
             enableHighAccuracy: true,
             maximumAge: 0,
             timeout: 10000
         });
-
-        // Listener per l'accelerometro (accelerazione/frenata)
         window.addEventListener('devicemotion', updateAcceleration);
-
-        // Listener per il giroscopio (inclinazione)
         window.addEventListener('deviceorientation', updateOrientation);
     }
 
-    // Funzione per aggiornare la velocità
+    // *** NUOVA FUNZIONE DI CALIBRAZIONE ***
+    function calibrateSensors() {
+        const originalText = calibrateBtn.textContent;
+        calibrateBtn.textContent = 'Calibrando...';
+        calibrateBtn.disabled = true;
+
+        const handleMotion = (event) => {
+            if (event.acceleration) {
+                accelOffsetZ = event.acceleration.z;
+            }
+            window.removeEventListener('devicemotion', handleMotion, true);
+        };
+
+        const handleOrientation = (event) => {
+            pitchOffset = event.beta || 0;
+            rollOffset = event.gamma || 0;
+            window.removeEventListener('deviceorientation', handleOrientation, true);
+            
+            console.log(`Sensori calibrati. Offset: Z=${accelOffsetZ.toFixed(2)}, Pitch=${pitchOffset.toFixed(2)}, Roll=${rollOffset.toFixed(2)}`);
+            
+            // Feedback visivo
+            setTimeout(() => {
+                calibrateBtn.textContent = 'Posizione Azzerata';
+                // Resetta anche i valori a schermo
+                pitchValue.textContent = '0°';
+                rollValue.textContent = '0°';
+                setTimeout(() => {
+                    calibrateBtn.textContent = originalText;
+                    calibrateBtn.disabled = false;
+                }, 1500);
+            }, 200);
+        };
+
+        window.addEventListener('devicemotion', handleMotion, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+
     function updateSpeed(position) {
-        // La velocità è in m/s, la convertiamo in km/h
         const speedKmh = position.coords.speed ? (position.coords.speed * 3.6).toFixed(0) : 0;
         speedValue.textContent = speedKmh;
-
-        // Aggiorna l'indicatore grafico del tachimetro
         const speedFraction = Math.min(speedKmh / MAX_SPEED, 1);
         const offset = gaugeCircumference * (1 - speedFraction);
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // LOGICA DI ACCELERAZIONE CORRETTA
+    // *** FUNZIONE AGGIORNATA CON CALIBRAZIONE ***
     function updateAcceleration(event) {
-        // Usiamo event.acceleration che esclude la gravità per misurare la vera accelerazione.
-        if (!event.acceleration) {
-            return; // Il sensore potrebbe non essere disponibile
-        }
+        if (!event.acceleration) return;
 
-        // Con il telefono in verticale, l'asse Z misura la spinta avanti/indietro.
-        const accelerationZ = event.acceleration.z;
+        // Applica l'offset di calibrazione
+        const calibratedAccelerationZ = event.acceleration.z - accelOffsetZ;
         
-        // Soglia per ignorare piccole vibrazioni. Un valore basso la rende più sensibile.
         const threshold = 0.4;
         let accelPercent = 0;
         let brakePercent = 0;
 
-        // FRENATA: l'inerzia spinge il telefono in avanti (valore Z positivo)
-        if (accelerationZ > threshold) { 
-            // Normalizziamo il valore. Una frenata intensa può raggiungere 7-9 m/s^2.
-            brakePercent = Math.min(((accelerationZ - threshold) / 7) * 100, 100);
-        } 
-        // ACCELERAZIONE: la spinta del veicolo preme sul telefono (valore Z negativo)
-        else if (accelerationZ < -threshold) { 
-            accelPercent = Math.min((Math.abs(accelerationZ) - threshold) / 7 * 100, 100);
+        if (calibratedAccelerationZ > threshold) { 
+            brakePercent = Math.min(((calibratedAccelerationZ - threshold) / 7) * 100, 100);
+        } else if (calibratedAccelerationZ < -threshold) { 
+            accelPercent = Math.min((Math.abs(calibratedAccelerationZ) - threshold) / 7 * 100, 100);
         }
         
-        // Aggiorniamo le barre
         accelBar.style.width = `${accelPercent}%`;
         brakeBar.style.width = `${brakePercent}%`;
     }
 
-    // Funzione per aggiornare l'orientamento
+    // *** FUNZIONE AGGIORNATA CON CALIBRAZIONE ***
     function updateOrientation(event) {
-        // Beta: beccheggio (inclinazione avanti/indietro)
-        // Gamma: rollio (inclinazione laterale)
-        const pitch = event.beta ? event.beta.toFixed(0) : 0;
-        const roll = event.gamma ? event.gamma.toFixed(0) : 0;
+        // Applica l'offset di calibrazione
+        const pitch = (event.beta ? event.beta - pitchOffset : 0).toFixed(0);
+        const roll = (event.gamma ? event.gamma - rollOffset : 0).toFixed(0);
 
         pitchValue.textContent = `${pitch}°`;
         rollValue.textContent = `${roll}°`;
