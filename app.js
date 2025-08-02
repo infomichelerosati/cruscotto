@@ -9,12 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const startupCalibrationPopup = document.getElementById('startup-calibration-popup');
 
     const speedValue = document.getElementById('speed-value');
-    // Seleziona tutti i cerchi del tachimetro
-    const speedGaugeGreen = document.getElementById('speed-gauge-green');
-    const speedGaugeYellow = document.getElementById('speed-gauge-yellow');
-    const speedGaugeOrange = document.getElementById('speed-gauge-orange');
-    const speedGaugeRed = document.getElementById('speed-gauge-red');
-    const allGauges = [speedGaugeGreen, speedGaugeYellow, speedGaugeOrange, speedGaugeRed];
+    
+    // --- NUOVA SELEZIONE TACHIMETRO ---
+    // Seleziona il cerchio di sfondo e quello principale del tachimetro
+    const speedGauge = document.getElementById('speed-gauge');
+    const speedGaugeBg = document.getElementById('speed-gauge-bg');
 
     const accelBar = document.getElementById('accel-bar');
     const brakeBar = document.getElementById('brake-bar');
@@ -33,15 +32,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const SPEED_ORANGE_MAX = 160;
     const MAX_SPEED = 200;
 
-    const gaugeRadius = speedGaugeGreen.r.baseVal.value;
+    // --- NUOVA LOGICA DI INIZIALIZZAZIONE TACHIMETRO ---
+    // Calcola la circonferenza e la lunghezza dell'arco (270 gradi)
+    // Nota: questo calcolo avviene una sola volta, assumendo che la dimensione non cambi.
+    // Per un layout completamente fluido, questo andrebbe ricalcolato su 'resize'.
+    const gaugeRadius = speedGauge.r.baseVal.value;
     const circumference = 2 * Math.PI * gaugeRadius;
+    const totalArcLength = circumference * 0.75; // L'arco del tachimetro è 3/4 di cerchio (270 gradi)
 
-    // Inizializzazione corretta dei cerchi
-    allGauges.forEach(gauge => {
-        gauge.style.strokeDashoffset = 0; 
-        gauge.style.strokeDasharray = `0 ${circumference}`;
-    });
+    // Imposta l'arco di sfondo
+    speedGaugeBg.style.strokeDasharray = `${totalArcLength} ${circumference}`;
+    
+    // Inizializza l'indicatore di velocità a 0
+    speedGauge.style.strokeDasharray = `0 ${circumference}`;
 
+    // Costanti per la calibrazione automatica
     const STILLNESS_THRESHOLD_MS = 2000;
     const AUTO_CALIBRATE_THRESHOLD_MS = 5000;
     const AUTO_CALIBRATE_COOLDOWN_MS = 10000;
@@ -53,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastAutoCalibrateTime = 0;
     let isCalibrating = false;
 
+    // Funzione per mantenere lo schermo attivo
     const requestWakeLock = async () => {
         if ('wakeLock' in navigator) {
             try {
@@ -70,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Registrazione del Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js').catch(error => console.log('Registrazione Service Worker fallita:', error));
     }
@@ -77,8 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
     permissionBtn.addEventListener('click', requestPermissions);
     calibrateBtn.addEventListener('click', () => calibrateSensors(false));
 
+    // Richiesta dei permessi per sensori e GPS
     async function requestPermissions() {
         try {
+            // Permessi per iOS
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const orientationPermission = await DeviceOrientationEvent.requestPermission();
                 if (orientationPermission !== 'granted') throw new Error("Permesso per l'orientamento del dispositivo negato.");
@@ -90,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             permissionScreen.classList.add('hidden');
             startupCalibrationPopup.classList.remove('hidden');
 
+            // Calibrazione iniziale automatica
             setTimeout(() => {
                 calibrateSensors(true);
                 startupCalibrationPopup.classList.add('hidden');
@@ -105,11 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Avvio dei listener per GPS e sensori di movimento
     function startListeners() {
         navigator.geolocation.watchPosition(updateSpeed, handleLocationError, { enableHighAccuracy: true });
         window.addEventListener('deviceorientation', updateAttitude);
     }
 
+    // Funzione per calibrare i sensori di inclinazione
     function calibrateSensors(isAuto = false) {
         if (isCalibrating) return;
         isCalibrating = true;
@@ -151,16 +163,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
+    // --- FUNZIONE updateSpeed COMPLETAMENTE RISCRITTA ---
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
         const timeSinceLastMovement = Date.now() - lastMovementTime;
-
         const timeSinceLastCalibrate = Date.now() - lastAutoCalibrateTime;
+
+        // Auto-calibrazione se il dispositivo è fermo per un po'
         if (timeSinceLastMovement > AUTO_CALIBRATE_THRESHOLD_MS && timeSinceLastCalibrate > AUTO_CALIBRATE_COOLDOWN_MS) {
             calibrateSensors(true);
         }
 
+        // Se il dispositivo è fermo, forza la velocità a 0 per precisione
         if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
             speedKmh = 0;
         }
@@ -168,29 +183,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const displaySpeed = speedKmh.toFixed(0);
         speedValue.textContent = displaySpeed;
         
-        const speedForGauge = Math.min(speedKmh, MAX_SPEED);
+        // Calcola la frazione di velocità rispetto al massimo
+        const speedFraction = Math.min(speedKmh, MAX_SPEED) / MAX_SPEED;
+        // Calcola la lunghezza dell'arco da visualizzare
+        const strokeLen = speedFraction * totalArcLength;
 
-        // Calcola la lunghezza di ogni segmento in base alla velocità limitata
-        const greenLen = (Math.min(speedForGauge, SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
-        const yellowLen = (Math.max(0, Math.min(speedForGauge, SPEED_YELLOW_MAX) - SPEED_GREEN_MAX) / MAX_SPEED) * circumference;
-        const orangeLen = (Math.max(0, Math.min(speedForGauge, SPEED_ORANGE_MAX) - SPEED_YELLOW_MAX) / MAX_SPEED) * circumference;
-        const redLen = (Math.max(0, speedForGauge - SPEED_ORANGE_MAX) / MAX_SPEED) * circumference;
+        // Applica la lunghezza calcolata all'attributo stroke-dasharray per "disegnare" l'arco
+        speedGauge.style.strokeDasharray = `${strokeLen} ${circumference}`;
 
-        // Calcola lo spazio vuoto (gap) prima di ogni segmento
-        const yellowGap = (SPEED_GREEN_MAX / MAX_SPEED) * circumference;
-        const orangeGap = (SPEED_YELLOW_MAX / MAX_SPEED) * circumference;
-        const redGap = (SPEED_ORANGE_MAX / MAX_SPEED) * circumference;
+        // Aggiorna il colore dell'indicatore in base alla velocità
+        let newColor;
+        if (speedKmh <= SPEED_GREEN_MAX) {
+            newColor = '#22c55e'; // Verde
+        } else if (speedKmh <= SPEED_YELLOW_MAX) {
+            newColor = '#eab308'; // Giallo
+        } else if (speedKmh <= SPEED_ORANGE_MAX) {
+            newColor = '#f97316'; // Arancione
+        } else {
+            newColor = '#ef4444'; // Rosso
+        }
+        speedGauge.style.stroke = newColor;
 
-        // --- CORREZIONE LOGICA DI DISEGNO ---
-        // Applica i valori di dasharray corretti per disegnare ogni segmento
-        speedGaugeGreen.style.strokeDasharray = `${greenLen} ${circumference}`;
-        
-        // Per i segmenti successivi, definiamo: gap iniziale, lunghezza del segmento, e il gap rimanente
-        speedGaugeYellow.style.strokeDasharray = `0 ${yellowGap} ${yellowLen} ${circumference - yellowGap - yellowLen}`;
-        speedGaugeOrange.style.strokeDasharray = `0 ${orangeGap} ${orangeLen} ${circumference - orangeGap - orangeLen}`;
-        speedGaugeRed.style.strokeDasharray = `0 ${redGap} ${redLen} ${circumference - redGap - redLen}`;
-
-        // Cambia colore del testo della velocità
+        // Cambia colore del testo della velocità quando si superano i 160 km/h
         if (speedKmh > SPEED_ORANGE_MAX) {
             speedValue.classList.add('text-red-500');
             speedValue.classList.remove('text-white');
@@ -200,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Funzione per aggiornare l'assetto del veicolo (inclinazione e beccheggio)
     function updateAttitude(event) {
         lastMovementTime = Date.now();
 
