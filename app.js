@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const permissionBtn = document.getElementById('permission-btn');
     const dashboard = document.getElementById('dashboard');
     const errorMessage = document.getElementById('error-message');
+    const startupCalibrationPopup = document.getElementById('startup-calibration-popup');
 
     const speedValue = document.getElementById('speed-value');
     const speedGauge = document.getElementById('speed-gauge');
@@ -75,12 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!('geolocation' in navigator)) throw new Error("Geolocalizzazione non supportata.");
             
             startListeners();
+            
+            // --- NUOVA LOGICA DI AVVIO ---
             permissionScreen.classList.add('hidden');
-            dashboard.classList.remove('hidden');
-            await requestWakeLock();
+            startupCalibrationPopup.classList.remove('hidden');
+
+            setTimeout(() => {
+                calibrateSensors(true); // Esegui calibrazione iniziale silenziosa
+                startupCalibrationPopup.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+                requestWakeLock();
+            }, 2000); // Attendi 2 secondi
+
         } catch (error) {
             console.error("Errore permessi:", error);
             showError(error.message);
+            startupCalibrationPopup.classList.add('hidden');
+            permissionScreen.classList.remove('hidden');
         }
     }
 
@@ -101,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
             calibrateBtn.classList.add('calibrating');
             calibrateBtn.disabled = true;
         } else {
-            console.log("Avvio calibrazione automatica...");
+            console.log("Avvio calibrazione automatica/iniziale...");
             // Feedback visivo leggero per la calibrazione automatica
             calibrateBtn.style.transition = 'opacity 0.2s';
             calibrateBtn.style.opacity = '0.5';
@@ -140,14 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const timeSinceLastMovement = Date.now() - lastMovementTime;
 
-        // --- NUOVA LOGICA DI CALIBRAZIONE AUTOMATICA ---
+        // Logica di calibrazione automatica
         const timeSinceLastCalibrate = Date.now() - lastAutoCalibrateTime;
-        // Se fermo da 5s E non abbiamo calibrato negli ultimi 10s
         if (timeSinceLastMovement > AUTO_CALIBRATE_THRESHOLD_MS && timeSinceLastCalibrate > AUTO_CALIBRATE_COOLDOWN_MS) {
-            calibrateSensors(true); // Esegui calibrazione automatica
+            calibrateSensors(true);
         }
 
-        // Logica per azzerare la velocità se fermo da 2s
+        // Logica per azzerare la velocità
         if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
             speedKmh = 0;
         }
