@@ -11,8 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const speedGauge = document.getElementById('speed-gauge');
     const accelBar = document.getElementById('accel-bar');
     const brakeBar = document.getElementById('brake-bar');
+    
+    // *** SELEZIONA LE IMMAGINI PNG INVECE DEGLI SVG ***
     const rollValue = document.getElementById('roll-value');
     const pitchValue = document.getElementById('pitch-value');
+    const rearCarImg = document.getElementById('rear-car-img');
+    const sideCarImg = document.getElementById('side-car-img');
+
+    const calibrateBtn = document.getElementById('calibrate-btn');
+    const sensitivitySlider = document.getElementById('sensitivity-slider');
 
     // Calcola la circonferenza del cerchio del tachimetro
     const gaugeRadius = speedGauge.r.baseVal.value;
@@ -20,189 +27,146 @@ document.addEventListener('DOMContentLoaded', () => {
     speedGauge.style.strokeDasharray = gaugeCircumference;
     speedGauge.style.strokeDashoffset = gaugeCircumference;
 
-    const MAX_SPEED = 200; // Velocità massima in km/h per il tachimetro
+    const MAX_SPEED = 200;
+    let wakeLock = null;
 
-    // Gestione del Service Worker per la PWA
+    // Variabili per la calibrazione
+    let pitchOffset = 0;
+    let rollOffset = 0;
+    let accelOffsetZ = 0;
+
+    const requestWakeLock = async () => {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Screen Wake Lock attivato.');
+                wakeLock.addEventListener('release', () => { wakeLock = null; });
+            } catch (err) { console.error(`${err.name}, ${err.message}`); }
+        }
+    };
+
+    const handleVisibilityChange = async () => {
+        if (wakeLock === null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js')
-            .then(registration => console.log('Service Worker registrato con successo:', registration))
-            .catch(error => console.log('Registrazione Service Worker fallita:', error));
+        navigator.serviceWorker.register('service-worker.js').catch(error => console.log('Registrazione Service Worker fallita:', error));
     }
 
-    // Gestione del click sul pulsante dei permessi
     permissionBtn.addEventListener('click', requestPermissions);
+    calibrateBtn.addEventListener('click', calibrateSensors);
 
     async function requestPermissions() {
         try {
-            // Richiesta per i sensori di movimento (necessaria su iOS 13+)
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 const motionPermission = await DeviceMotionEvent.requestPermission();
-                if (motionPermission !== 'granted') {
-                    showError("Permesso per i sensori di movimento negato.");
-                    return;
-                }
+                if (motionPermission !== 'granted') throw new Error("Permesso per i sensori di movimento negato.");
             }
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                if (orientationPermission !== 'granted') {
-                    showError("Permesso per l'orientamento del dispositivo negato.");
-                    return;
-                }
+                if (orientationPermission !== 'granted') throw new Error("Permesso per l'orientamento del dispositivo negato.");
             }
-
-            // Richiesta per la geolocalizzazione
-            if (!('geolocation' in navigator)) {
-                showError("Geolocalizzazione non supportata dal tuo browser.");
-                return;
-            }
+            if (!('geolocation' in navigator)) throw new Error("Geolocalizzazione non supportata.");
             
-            // Se tutto va a buon fine, avvia i listener
             startListeners();
-            
-            // Mostra il cruscotto e nascondi la schermata dei permessi
             permissionScreen.classList.add('hidden');
             dashboard.classList.remove('hidden');
-
+            await requestWakeLock();
         } catch (error) {
-            console.error("Errore durante la richiesta dei permessi:", error);
-            showError("Impossibile abilitare i sensori. Assicurati di usare HTTPS.");
+            console.error("Errore permessi:", error);
+            showError(error.message);
         }
     }
 
     function startListeners() {
-        // Listener per la geolocalizzazione (velocità)
-        navigator.geolocation.watchPosition(updateSpeed, handleLocationError, {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 10000
-        });
-
-        // Listener per l'accelerometro (accelerazione/frenata)
+        navigator.geolocation.watchPosition(updateSpeed, handleLocationError, { enableHighAccuracy: true });
         window.addEventListener('devicemotion', updateAcceleration);
-
-        // Listener per il giroscopio (inclinazione)
         window.addEventListener('deviceorientation', updateOrientation);
     }
 
-    // Funzione per aggiornare la velocità
-    function updateSpeed(position) {
-        // La velocità è in m/s, la convertiamo in km/h
-        const speedKmh = position.coords.speed ? (position.coords.speed * 3.6).toFixed(0) : 0;
-        speedValue.textContent = speedKmh;
+    function calibrateSensors() {
+        calibrateBtn.classList.add('calibrating');
+        calibrateBtn.disabled = true;
 
-        // Aggiorna l'indicatore grafico del tachimetro
-        const speedFraction = Math.min(speedKmh / MAX_SPEED, 1);
+        const handleMotion = (event) => {
+            if (event.acceleration) accelOffsetZ = event.acceleration.z;
+            window.removeEventListener('devicemotion', handleMotion, true);
+        };
+
+        const handleOrientation = (event) => {
+            pitchOffset = event.beta || 0;
+            rollOffset = event.gamma || 0;
+            window.removeEventListener('deviceorientation', handleOrientation, true);
+            
+            console.log(`Sensori calibrati. Offset: Z=${accelOffsetZ.toFixed(2)}, Pitch=${pitchOffset.toFixed(2)}, Roll=${rollOffset.toFixed(2)}`);
+            
+            pitchValue.textContent = '0°';
+            rollValue.textContent = '0°';
+            
+            setTimeout(() => {
+                calibrateBtn.classList.remove('calibrating');
+                calibrateBtn.disabled = false;
+            }, 500);
+        };
+
+        window.addEventListener('devicemotion', handleMotion, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+
+    function updateSpeed(position) {
+        let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
+        if (speedKmh < 3) speedKmh = 0;
+
+        const displaySpeed = speedKmh.toFixed(0);
+        speedValue.textContent = displaySpeed;
+        const speedFraction = Math.min(displaySpeed / MAX_SPEED, 1);
         const offset = gaugeCircumference * (1 - speedFraction);
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // Funzione per aggiornare l'accelerazione
     function updateAcceleration(event) {
-        // Usiamo l'asse Y che di solito corrisponde all'avanti/indietro del dispositivo
-        const accelerationY = event.accelerationIncludingGravity.y;
-        
-        // Normalizziamo il valore e applichiamo una soglia per ignorare piccoli movimenti
-        const threshold = 1.5;
+        if (!event.acceleration) return;
+        const calibratedAccelerationZ = event.acceleration.z - accelOffsetZ;
+        const divisor = 16 - sensitivitySlider.value;
+        const threshold = 0.4;
         let accelPercent = 0;
         let brakePercent = 0;
 
-        if (accelerationY > threshold) { // Frenata (il telefono si inclina in avanti)
-            brakePercent = Math.min(((accelerationY - threshold) / 10) * 100, 100);
-        } else if (accelerationY < -threshold) { // Accelerazione (il telefono si inclina indietro)
-            accelPercent = Math.min((Math.abs(accelerationY) - threshold) / 10 * 100, 100);
+        if (calibratedAccelerationZ > threshold) { 
+            brakePercent = Math.min(((calibratedAccelerationZ - threshold) / divisor) * 100, 100);
+        } else if (calibratedAccelerationZ < -threshold) { 
+            accelPercent = Math.min((Math.abs(calibratedAccelerationZ) - threshold) / divisor * 100, 100);
         }
         
         accelBar.style.width = `${accelPercent}%`;
         brakeBar.style.width = `${brakePercent}%`;
     }
 
-    // Funzione per aggiornare l'orientamento
+    // *** FUNZIONE ASSETTO AGGIORNATA PER LE IMMAGINI ***
     function updateOrientation(event) {
-        // Beta: beccheggio (inclinazione avanti/indietro)
-        // Gamma: rollio (inclinazione laterale)
-        const pitch = event.beta ? event.beta.toFixed(0) : 0;
-        const roll = event.gamma ? event.gamma.toFixed(0) : 0;
+        if (!event.beta || !event.gamma) return;
 
-        pitchValue.textContent = `${pitch}°`;
-        rollValue.textContent = `${roll}°`;
+        const calibratedPitch = event.beta - pitchOffset;
+        const calibratedRoll = event.gamma - rollOffset;
+
+        // Applica la rotazione alle immagini PNG
+        rearCarImg.style.transform = `rotate(${calibratedRoll}deg)`;
+        sideCarImg.style.transform = `rotate(${calibratedPitch}deg)`;
+
+        rollValue.textContent = `${Math.abs(calibratedRoll).toFixed(0)}°`;
+        pitchValue.textContent = `${Math.abs(calibratedPitch).toFixed(0)}°`;
     }
 
     function handleLocationError(error) {
-        console.error("Errore di geolocalizzazione:", error);
+        console.error("Errore GPS:", error);
         showError(`Errore GPS: ${error.message}`);
         speedValue.textContent = '---';
     }
 
     function showError(message) {
         errorMessage.textContent = message;
-    }
-
-    // --- LOGICA PER LA FIRMA ANIMATA ---
-    const signatureCanvas = document.getElementById('signature-canvas');
-    if (signatureCanvas) {
-        const ctx = signatureCanvas.getContext('2d');
-        
-        const colors = [
-            '#0ea5e9', // cyan
-            '#22c55e', // green
-            '#facc15', // yellow
-            '#f97316', // orange
-            '#ef4444', // red
-            '#d946ef', // fuchsia
-            '#8b5cf6', // violet
-            '#ec4899'  // pink
-        ];
-        let colorIndex = 0;
-        let transitionProgress = 0;
-        const transitionSpeed = 0.01; // Controlla la velocità del cambio colore
-
-        function hexToRgb(hex) {
-            let r = 0, g = 0, b = 0;
-            if (hex.length == 4) {
-                r = parseInt(hex[1] + hex[1], 16);
-                g = parseInt(hex[2] + hex[2], 16);
-                b = parseInt(hex[3] + hex[3], 16);
-            } else if (hex.length == 7) {
-                r = parseInt(hex[1] + hex[2], 16);
-                g = parseInt(hex[3] + hex[4], 16);
-                b = parseInt(hex[5] + hex[6], 16);
-            }
-            return { r, g, b };
-        }
-
-        function interpolateColor(color1, color2, factor) {
-            let result = { r: color1.r, g: color1.g, b: color1.b };
-            result.r = Math.round(result.r + factor * (color2.r - result.r));
-            result.g = Math.round(result.g + factor * (color2.g - result.g));
-            result.b = Math.round(result.b + factor * (color2.b - result.b));
-            return `rgb(${result.r}, ${result.g}, ${result.b})`;
-        }
-
-        function animateSignature() {
-            const startColorRgb = hexToRgb(colors[colorIndex]);
-            const endColorRgb = hexToRgb(colors[(colorIndex + 1) % colors.length]);
-
-            const interpolatedColor = interpolateColor(startColorRgb, endColorRgb, transitionProgress);
-
-            // Pulisce il canvas
-            ctx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-
-            // Disegna il testo. Ho usato 12px invece di 6px per una migliore leggibilità.
-            ctx.font = '12px Orbitron';
-            ctx.fillStyle = interpolatedColor;
-            ctx.fillText('Powered by Michele Rosati', 5, 17);
-
-            transitionProgress += transitionSpeed;
-
-            if (transitionProgress >= 1) {
-                transitionProgress = 0;
-                colorIndex = (colorIndex + 1) % colors.length;
-            }
-
-            requestAnimationFrame(animateSignature);
-        }
-
-        // Avvia l'animazione
-        animateSignature();
     }
 });
