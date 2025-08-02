@@ -43,6 +43,17 @@
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
 
+    <!-- Popup di calibrazione all'avvio -->
+    <div id="startup-calibration-popup" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+        <div class="text-center">
+            <svg class="animate-spin h-10 w-10 text-white mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <h2 class="text-2xl font-bold text-white">Calibrazione in corso...</h2>
+        </div>
+    </div>
+
     <div id="permission-screen" class="text-center p-8">
         <h1 class="text-3xl font-bold mb-4 text-white">Tachimetro Futuristico</h1>
         <p class="mb-8 text-slate-300">Per iniziare, è necessario concedere i permessi per accedere al GPS e ai sensori di movimento del dispositivo.</p>
@@ -71,7 +82,7 @@
             </div>
             <!-- Indicatori 0 e 200 (con '200' spostato) -->
             <span class="absolute bottom-4 left-4 text-slate-500 text-lg font-bold">0</span>
-            <span class="absolute bottom-4 right-1 text-slate-500 text-lg font-bold">200</span>
+            <span class="absolute bottom-4 right-2 text-slate-500 text-lg font-bold">200</span>
         </div>
 
         <div class="w-full max-w-md p-4">
@@ -126,4 +137,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
