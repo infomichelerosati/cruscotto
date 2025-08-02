@@ -96,26 +96,29 @@ document.addEventListener('DOMContentLoaded', () => {
         speedGauge.style.strokeDashoffset = offset;
     }
 
-    // *** LOGICA DI ACCELERAZIONE MODIFICATA ***
+    // *** LOGICA DI ACCELERAZIONE CORRETTA ***
     function updateAcceleration(event) {
-        // Usiamo l'asse Z dell'accelerometro (con gravità inclusa).
-        // Quando il telefono è verticale, questo asse misura la spinta avanti/indietro.
-        const accelerationZ = event.accelerationIncludingGravity.z;
+        // Usiamo event.acceleration che esclude la gravità per misurare la vera accelerazione.
+        if (!event.acceleration) {
+            return; // Il sensore potrebbe non essere disponibile
+        }
+
+        // Con il telefono in verticale, l'asse Z misura la spinta avanti/indietro.
+        const accelerationZ = event.acceleration.z;
         
-        // Impostiamo una soglia per ignorare le vibrazioni e la leggera inclinazione.
-        // Un valore di 1.5 m/s^2 è un buon punto di partenza.
-        const threshold = 1.5;
+        // Soglia per ignorare piccole vibrazioni. Un valore basso la rende più sensibile.
+        const threshold = 0.4;
         let accelPercent = 0;
         let brakePercent = 0;
 
-        // L'accelerazione del veicolo spinge il telefono all'indietro (valore Z negativo).
-        if (accelerationZ < -threshold) { 
-            // Calcoliamo la percentuale, normalizzando il valore per non essere troppo sensibile.
-            accelPercent = Math.min((Math.abs(accelerationZ) - threshold) / 5 * 100, 100);
+        // FRENATA: l'inerzia spinge il telefono in avanti (valore Z positivo)
+        if (accelerationZ > threshold) { 
+            // Normalizziamo il valore. Una frenata intensa può raggiungere 7-9 m/s^2.
+            brakePercent = Math.min(((accelerationZ - threshold) / 7) * 100, 100);
         } 
-        // La frenata spinge il telefono in avanti (valore Z positivo).
-        else if (accelerationZ > threshold) { 
-            brakePercent = Math.min(((accelerationZ - threshold) / 5) * 100, 100);
+        // ACCELERAZIONE: la spinta del veicolo preme sul telefono (valore Z negativo)
+        else if (accelerationZ < -threshold) { 
+            accelPercent = Math.min((Math.abs(accelerationZ) - threshold) / 7 * 100, 100);
         }
         
         // Aggiorniamo le barre
@@ -140,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         speedValue.textContent = '---';
     }
 
-function showError(message) {
+    function showError(message) {
         errorMessage.textContent = message;
     }
 });
