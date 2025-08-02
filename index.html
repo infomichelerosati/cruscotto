@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Tachimetro GPS Futuristico</title>
     
     <meta name="theme-color" content="#0a0a0a"/>
@@ -39,9 +39,6 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        .gauge-circle {
-            transition: stroke-dasharray 0.2s ease-out;
-        }
     </style>
 </head>
 <body class="bg-black text-cyan-300 flex items-center justify-center min-h-screen overflow-hidden select-none">
@@ -72,17 +69,15 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
         </button>
 
-        <!-- Tachimetro con cerchi multipli per i colori progressivi -->
+        <!-- TACHIMETRO CORRETTO -->
         <div class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80">
-            <!-- CORREZIONE: Ruota l'intero SVG per allineare il punto di partenza con lo '0' in basso a sinistra -->
+            <!-- Ruota l'intero SVG per allineare il punto di partenza con lo '0' in basso a sinistra -->
             <svg class="w-full h-full" style="transform: rotate(135deg);">
-                <!-- Sfondo -->
-                <circle cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" />
-                <!-- Segmenti colorati -->
-                <circle id="speed-gauge-green" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#22c55e" stroke-width="12" fill="transparent" stroke-linecap="round" />
-                <circle id="speed-gauge-yellow" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#eab308" stroke-width="12" fill="transparent" stroke-linecap="round" />
-                <circle id="speed-gauge-orange" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#f97316" stroke-width="12" fill="transparent" stroke-linecap="round" />
-                <circle id="speed-gauge-red" class="gauge-circle" cx="50%" cy="50%" r="45%" stroke="#ef4444" stroke-width="12" fill="transparent" stroke-linecap="round" />
+                <!-- Sfondo del tachimetro (arco di 270 gradi) -->
+                <circle id="speed-gauge-bg" cx="50%" cy="50%" r="45%" stroke="#1e293b" stroke-width="10" fill="transparent" stroke-linecap="round" />
+                <!-- Indicatore di velocità (un singolo cerchio che cambia colore) -->
+                <circle id="speed-gauge" cx="50%" cy="50%" r="45%" stroke="#22c55e" stroke-width="12" fill="transparent" stroke-linecap="round"
+                        style="transition: stroke-dasharray 0.2s ease-out, stroke 0.3s ease-out;" />
             </svg>
             <div class="absolute text-center">
                 <span id="speed-value" class="text-7xl sm:text-8xl font-bold text-white transition-colors duration-300">0</span>
@@ -90,7 +85,7 @@
             </div>
             <!-- Indicatori 0 e 200 -->
             <span class="absolute bottom-4 left-4 text-slate-500 text-lg font-bold">0</span>
-            <span class="absolute bottom-4 right-0 text-slate-500 text-lg font-bold">200</span>
+            <span class="absolute bottom-4 right-4 text-slate-500 text-lg font-bold">200</span>
         </div>
 
         <div class="w-full max-w-md p-4">
@@ -120,19 +115,19 @@
         <div class="w-full max-w-md p-4">
             <div class="text-center mb-3 text-lg font-bold tracking-widest text-white">ASSETTO</div>
             <div class="grid grid-cols-2 gap-4 text-center">
-                <!-- Visuale Inclinazione con PNG -->
+                <!-- Visuale Inclinazione -->
                 <div>
                     <div class="h-20 flex items-center justify-center">
-                        <img id="rear-car-img" src="images/rear-car.png" alt="Vista posteriore auto" 
+                        <img id="rear-car-img" src="https://storage.googleapis.com/gemini-prod/images/3a22f36c-041f-4351-863a-23533924f738" alt="Vista posteriore auto" 
                              onerror="this.onerror=null;this.src='https://placehold.co/100x60/0a0a0a/ff0000?text=Manca+Img';"
                              class="w-24 h-auto transition-transform duration-100" style="transform-origin: center;">
                     </div>
                     <div id="roll-value" class="text-xl font-bold text-white mt-2">0°</div>
                 </div>
-                <!-- Visuale Beccheggio con PNG -->
+                <!-- Visuale Beccheggio -->
                 <div>
                     <div class="h-20 flex items-center justify-center">
-                         <img id="side-car-img" src="images/side-car.png" alt="Vista laterale auto"
+                         <img id="side-car-img" src="https://storage.googleapis.com/gemini-prod/images/d3d89d46-5632-443b-871d-25f6e8e82672" alt="Vista laterale auto"
                               onerror="this.onerror=null;this.src='https://placehold.co/120x60/0a0a0a/ff0000?text=Manca+Img';"
                               class="w-28 h-auto transition-transform duration-100" style="transform-origin: center;">
                     </div>
@@ -145,4 +140,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
