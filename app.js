@@ -36,8 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Calcoli per l'arco del tachimetro
     const gaugeRadius = speedGaugeGreen.r.baseVal.value;
     const circumference = 2 * Math.PI * gaugeRadius;
-    // L'arco del tachimetro è 3/4 di cerchio (270 gradi)
-    const totalArcLength = circumference * 0.75; 
+    const totalArcLength = circumference * 0.75; // L'arco del tachimetro è 3/4 di cerchio (270 gradi)
 
     // Inizializzazione corretta dei cerchi a essere invisibili
     allGauges.forEach(gauge => {
@@ -79,18 +78,33 @@ document.addEventListener('DOMContentLoaded', () => {
     permissionBtn.addEventListener('click', requestPermissions);
     calibrateBtn.addEventListener('click', () => calibrateSensors(false));
 
+    // --- FUNZIONE requestPermissions COMPLETAMENTE RISCRITTA E CORRETTA ---
     async function requestPermissions() {
+        errorMessage.textContent = ''; // Pulisce errori precedenti
         try {
+            // 1. Permesso per sensori di movimento (per iOS)
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                if (orientationPermission !== 'granted') throw new Error("Permesso per l'orientamento del dispositivo negato.");
+                if (orientationPermission !== 'granted') {
+                    throw new Error("Permesso per l'orientamento del dispositivo negato.");
+                }
             }
-            if (!('geolocation' in navigator)) throw new Error("Geolocalizzazione non supportata.");
-            
-            startListeners();
-            
+
+            // 2. Permesso per la Geolocalizzazione (per tutti i browser)
+            if (!('geolocation' in navigator)) {
+                throw new Error("La geolocalizzazione non è supportata dal tuo browser.");
+            }
+            // Richiesta esplicita del permesso GPS
+            await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject);
+            });
+
+            // 3. Se tutti i permessi sono stati concessi, avvia l'app
+            console.log("Permessi concessi. Avvio dell'applicazione.");
             permissionScreen.classList.add('hidden');
             startupCalibrationPopup.classList.remove('hidden');
+            
+            startListeners(); // Avvia i listener solo dopo aver ottenuto i permessi
 
             setTimeout(() => {
                 calibrateSensors(true);
@@ -100,14 +114,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2000);
 
         } catch (error) {
-            console.error("Errore permessi:", error);
-            showError(error.message);
-            startupCalibrationPopup.classList.add('hidden');
+            console.error("Errore durante la richiesta dei permessi:", error);
+            if (error.code === 1) { // Codice di errore 1 = PERMISSION_DENIED
+                 showError("Permesso per il GPS negato. L'app non può funzionare.");
+            } else {
+                 showError(error.message);
+            }
             permissionScreen.classList.remove('hidden');
+            dashboard.classList.add('hidden');
+            startupCalibrationPopup.classList.add('hidden');
         }
     }
 
     function startListeners() {
+        console.log("Avvio dei listener per posizione e orientamento.");
         navigator.geolocation.watchPosition(updateSpeed, handleLocationError, { enableHighAccuracy: true });
         window.addEventListener('deviceorientation', updateAttitude);
     }
@@ -153,7 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
-    // --- FUNZIONE updateSpeed CON LOGICA CORRETTA ---
     function updateSpeed(position) {
         let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
         
@@ -170,31 +189,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const speedForGauge = Math.min(speedKmh, MAX_SPEED);
         
-        // Calcola la lunghezza totale dell'arco da colorare
         const filledArcLength = (speedForGauge / MAX_SPEED) * totalArcLength;
 
-        // Calcola la lunghezza massima di ogni segmento colorato sull'arco
         const greenMaxArc = (SPEED_GREEN_MAX / MAX_SPEED) * totalArcLength;
         const yellowMaxArc = (SPEED_YELLOW_MAX / MAX_SPEED) * totalArcLength;
         const orangeMaxArc = (SPEED_ORANGE_MAX / MAX_SPEED) * totalArcLength;
 
-        // Calcola la lunghezza visibile di ogni segmento in base alla velocità attuale
         const greenLen = Math.min(filledArcLength, greenMaxArc);
         const yellowLen = Math.max(0, Math.min(filledArcLength, yellowMaxArc) - greenMaxArc);
         const orangeLen = Math.max(0, Math.min(filledArcLength, orangeMaxArc) - yellowMaxArc);
         const redLen = Math.max(0, filledArcLength - orangeMaxArc);
 
-        // Applica le lunghezze e gli offset corretti a ogni cerchio
-        // Il cerchio verde parte dall'inizio
         speedGaugeGreen.style.strokeDasharray = `${greenLen} ${circumference}`;
-        
-        // I cerchi successivi vengono disegnati con un offset (spazio vuoto iniziale)
-        // per farli iniziare dove finisce il segmento precedente.
         speedGaugeYellow.style.strokeDasharray = `0 ${greenMaxArc} ${yellowLen} ${circumference}`;
         speedGaugeOrange.style.strokeDasharray = `0 ${yellowMaxArc} ${orangeLen} ${circumference}`;
         speedGaugeRed.style.strokeDasharray = `0 ${orangeMaxArc} ${redLen} ${circumference}`;
 
-        // Cambia colore del testo della velocità
         if (speedKmh > SPEED_ORANGE_MAX) {
             speedValue.classList.add('text-red-500');
             speedValue.classList.remove('text-white');
@@ -247,229 +257,3 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.textContent = message;
     }
 });
-
-    // Nota: questo calcolo avviene una sola volta, assumendo che la dimensione non cambi.
-    // Per un layout completamente fluido, questo andrebbe ricalcolato su 'resize'.
-    const gaugeRadius = speedGauge.r.baseVal.value;
-    const circumference = 2 * Math.PI * gaugeRadius;
-    const totalArcLength = circumference * 0.75; // L'arco del tachimetro è 3/4 di cerchio (270 gradi)
-
-    // Imposta l'arco di sfondo
-    speedGaugeBg.style.strokeDasharray = `${totalArcLength} ${circumference}`;
-    
-    // Inizializza l'indicatore di velocità a 0
-    speedGauge.style.strokeDasharray = `0 ${circumference}`;
-
-    // Costanti per la calibrazione automatica
-    const STILLNESS_THRESHOLD_MS = 2000;
-    const AUTO_CALIBRATE_THRESHOLD_MS = 5000;
-    const AUTO_CALIBRATE_COOLDOWN_MS = 10000;
-
-    let wakeLock = null;
-    let pitchOffset = 0;
-    let rollOffset = 0;
-    let lastMovementTime = Date.now();
-    let lastAutoCalibrateTime = 0;
-    let isCalibrating = false;
-
-    // Funzione per mantenere lo schermo attivo
-    const requestWakeLock = async () => {
-        if ('wakeLock' in navigator) {
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-                console.log('Screen Wake Lock attivato.');
-                wakeLock.addEventListener('release', () => { wakeLock = null; });
-            } catch (err) { console.error(`${err.name}, ${err.message}`); }
-        }
-    };
-
-    const handleVisibilityChange = async () => {
-        if (wakeLock === null && document.visibilityState === 'visible') {
-            await requestWakeLock();
-        }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Registrazione del Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js').catch(error => console.log('Registrazione Service Worker fallita:', error));
-    }
-
-    permissionBtn.addEventListener('click', requestPermissions);
-    calibrateBtn.addEventListener('click', () => calibrateSensors(false));
-
-    // Richiesta dei permessi per sensori e GPS
-    async function requestPermissions() {
-        try {
-            // Permessi per iOS
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                if (orientationPermission !== 'granted') throw new Error("Permesso per l'orientamento del dispositivo negato.");
-            }
-            if (!('geolocation' in navigator)) throw new Error("Geolocalizzazione non supportata.");
-            
-            startListeners();
-            
-            permissionScreen.classList.add('hidden');
-            startupCalibrationPopup.classList.remove('hidden');
-
-            // Calibrazione iniziale automatica
-            setTimeout(() => {
-                calibrateSensors(true);
-                startupCalibrationPopup.classList.add('hidden');
-                dashboard.classList.remove('hidden');
-                requestWakeLock();
-            }, 2000);
-
-        } catch (error) {
-            console.error("Errore permessi:", error);
-            showError(error.message);
-            startupCalibrationPopup.classList.add('hidden');
-            permissionScreen.classList.remove('hidden');
-        }
-    }
-
-    // Avvio dei listener per GPS e sensori di movimento
-    function startListeners() {
-        navigator.geolocation.watchPosition(updateSpeed, handleLocationError, { enableHighAccuracy: true });
-        window.addEventListener('deviceorientation', updateAttitude);
-    }
-
-    // Funzione per calibrare i sensori di inclinazione
-    function calibrateSensors(isAuto = false) {
-        if (isCalibrating) return;
-        isCalibrating = true;
-
-        if (!isAuto) {
-            calibrateBtn.classList.add('calibrating');
-            calibrateBtn.disabled = true;
-        } else {
-            console.log("Avvio calibrazione automatica/iniziale...");
-            calibrateBtn.style.transition = 'opacity 0.2s';
-            calibrateBtn.style.opacity = '0.5';
-        }
-
-        const handleOrientation = (event) => {
-            pitchOffset = event.beta || 0;
-            rollOffset = event.gamma || 0;
-            window.removeEventListener('deviceorientation', handleOrientation, true);
-            
-            console.log(`Sensori calibrati. Offset: Pitch=${pitchOffset.toFixed(2)}, Roll=${rollOffset.toFixed(2)}`);
-            
-            pitchValue.textContent = '0°';
-            rollValue.textContent = '0°';
-            lastMovementTime = Date.now();
-            if (isAuto) {
-                lastAutoCalibrateTime = Date.now();
-            }
-            
-            setTimeout(() => {
-                if (!isAuto) {
-                    calibrateBtn.classList.remove('calibrating');
-                    calibrateBtn.disabled = false;
-                } else {
-                    calibrateBtn.style.opacity = '1';
-                }
-                isCalibrating = false;
-            }, 500);
-        };
-
-        window.addEventListener('deviceorientation', handleOrientation, true);
-    }
-
-    // --- FUNZIONE updateSpeed COMPLETAMENTE RISCRITTA ---
-    function updateSpeed(position) {
-        let speedKmh = position.coords.speed ? (position.coords.speed * 3.6) : 0;
-        
-        const timeSinceLastMovement = Date.now() - lastMovementTime;
-        const timeSinceLastCalibrate = Date.now() - lastAutoCalibrateTime;
-
-        // Auto-calibrazione se il dispositivo è fermo per un po'
-        if (timeSinceLastMovement > AUTO_CALIBRATE_THRESHOLD_MS && timeSinceLastCalibrate > AUTO_CALIBRATE_COOLDOWN_MS) {
-            calibrateSensors(true);
-        }
-
-        // Se il dispositivo è fermo, forza la velocità a 0 per precisione
-        if (timeSinceLastMovement > STILLNESS_THRESHOLD_MS) {
-            speedKmh = 0;
-        }
-
-        const displaySpeed = speedKmh.toFixed(0);
-        speedValue.textContent = displaySpeed;
-        
-        // Calcola la frazione di velocità rispetto al massimo
-        const speedFraction = Math.min(speedKmh, MAX_SPEED) / MAX_SPEED;
-        // Calcola la lunghezza dell'arco da visualizzare
-        const strokeLen = speedFraction * totalArcLength;
-
-        // Applica la lunghezza calcolata all'attributo stroke-dasharray per "disegnare" l'arco
-        speedGauge.style.strokeDasharray = `${strokeLen} ${circumference}`;
-
-        // Aggiorna il colore dell'indicatore in base alla velocità
-        let newColor;
-        if (speedKmh <= SPEED_GREEN_MAX) {
-            newColor = '#22c55e'; // Verde
-        } else if (speedKmh <= SPEED_YELLOW_MAX) {
-            newColor = '#eab308'; // Giallo
-        } else if (speedKmh <= SPEED_ORANGE_MAX) {
-            newColor = '#f97316'; // Arancione
-        } else {
-            newColor = '#ef4444'; // Rosso
-        }
-        speedGauge.style.stroke = newColor;
-
-        // Cambia colore del testo della velocità quando si superano i 160 km/h
-        if (speedKmh > SPEED_ORANGE_MAX) {
-            speedValue.classList.add('text-red-500');
-            speedValue.classList.remove('text-white');
-        } else {
-            speedValue.classList.remove('text-red-500');
-            speedValue.classList.add('text-white');
-        }
-    }
-
-    // Funzione per aggiornare l'assetto del veicolo (inclinazione e beccheggio)
-    function updateAttitude(event) {
-        lastMovementTime = Date.now();
-
-        if (event.beta === null || event.gamma === null) return;
-
-        const calibratedPitch = event.beta - pitchOffset;
-        const calibratedRoll = event.gamma - rollOffset;
-
-        rearCarImg.style.transform = `rotate(${calibratedRoll}deg)`;
-        sideCarImg.style.transform = `rotate(${calibratedPitch}deg)`;
-
-        rollValue.textContent = `${Math.abs(calibratedRoll).toFixed(0)}°`;
-        pitchValue.textContent = `${Math.abs(calibratedPitch).toFixed(0)}°`;
-
-        const pitchThreshold = 1.0; 
-        const sensitivity = sensitivitySlider.value;
-        const maxPitchForPower = 30 - (sensitivity * 1.5); 
-
-        let accelPercent = 0;
-        let brakePercent = 0;
-
-        if (calibratedPitch > pitchThreshold) { 
-            const accelPitch = calibratedPitch - pitchThreshold;
-            accelPercent = Math.min((accelPitch / maxPitchForPower) * 100, 100);
-        } else if (calibratedPitch < -pitchThreshold) { 
-            const brakePitch = Math.abs(calibratedPitch) - pitchThreshold;
-            brakePercent = Math.min((brakePitch / maxPitchForPower) * 100, 100);
-        }
-        
-        accelBar.style.width = `${accelPercent}%`;
-        brakeBar.style.width = `${brakePercent}%`;
-    }
-
-    function handleLocationError(error) {
-        console.error("Errore GPS:", error);
-        showError(`Errore GPS: ${error.message}`);
-        speedValue.textContent = '---';
-    }
-
-    function showError(message) {
-        errorMessage.textContent = message;
-    }
-});
-
